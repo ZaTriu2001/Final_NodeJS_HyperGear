@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 96" role="img" aria-labelledby="title description">
+  <title id="title">HyperGear</title>
+  <desc id="description">Logo HyperGear màu đỏ, trắng và đen</desc>
+  <defs>
+    <linearGradient id="hypergear-red" x1="0" x2="1">
+      <stop stop-color="#ff3a42"/>
+      <stop offset="1" stop-color="#b80e15"/>
+    </linearGradient>
+  </defs>
+  <g aria-hidden="true">
+    <path fill="url(#hypergear-red)" d="M8 70 37 12h23L49 35h27l11-23h23L81 70H58l10-21H42L31 70z"/>
+    <path fill="#ffffff" d="m18 78 16-8h52l-16 8z" opacity=".75"/>
+  </g>
+  <text x="112" y="63" fill="#ffffff" font-family="Arial Black,Arial,sans-serif" font-size="48" font-style="italic" font-weight="900" letter-spacing="-3">Hyper</text>
+  <text x="263" y="63" fill="url(#hypergear-red)" font-family="Arial Black,Arial,sans-serif" font-size="48" font-style="italic" font-weight="900" letter-spacing="-3">Gear</text>
+  <text x="116" y="84" fill="#aeb3bd" font-family="Arial,sans-serif" font-size="9" font-weight="700" letter-spacing="4">PERFORMANCE SYSTEMS</text>
+</svg>

@@ -1,0 +1,7 @@
+import { Link } from 'react-router-dom';
+
+export default function RegisterPage() {
+  return (
+    <div className="auth-page"><div className="auth-panel"><div className="auth-copy register-copy"><img src="/hypergear-logo.svg" alt="HyperGear" /><span>JOIN THE FORCE</span><h1>Một tài khoản.<br />Mọi đặc quyền.</h1><ul><li><i className="bi bi-check2" />Theo dõi lịch sử trạng thái đơn hàng</li><li><i className="bi bi-check2" />Quản lý tối đa ba địa chỉ</li><li><i className="bi bi-check2" />Tích và sử dụng điểm loyalty</li></ul></div><form className="auth-form" onSubmit={(event) => event.preventDefault()}><span className="form-kicker">THÀNH VIÊN MỚI</span><h2>Đăng ký</h2><label>Email<input type="email" placeholder="ban@example.com" required /></label><label>Họ và tên<input type="text" placeholder="Nguyễn Văn A" required /></label><label>Số điện thoại<input type="tel" placeholder="0900 000 000" required /></label><label>Địa chỉ giao hàng<textarea rows="3" placeholder="Số nhà, đường, phường/xã, tỉnh/thành" required /></label><label>Mật khẩu<input type="password" placeholder="Tối thiểu 8 ký tự" required /></label><label>Xác nhận mật khẩu<input type="password" placeholder="Nhập lại mật khẩu" required /></label><button className="btn btn-hyper w-100" type="submit" disabled>Tạo tài khoản</button><p className="form-explain">Mật khẩu cần chữ hoa, chữ thường, số và ký tự đặc biệt. Đổi/khôi phục mật khẩu dùng sau khi tài khoản được tạo.</p><p className="auth-switch">Đã có tài khoản? <Link to="/dang-nhap">Đăng nhập</Link></p></form></div></div>
+  );
+}
