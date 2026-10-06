@@ -1,0 +1,24 @@
+{
+  "name": "hypergear-ecommerce",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Node.js microservices e-commerce project for computers and components",
+  "workspaces": [
+    "apps/*",
+    "services/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace @hypergear/web",
+    "build": "npm run build --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "preview": "npm run preview --workspace @hypergear/web",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down"
+  },
+  "engines": {
+    "node": ">=24 <25"
+  }
+}
+
