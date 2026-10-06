@@ -1,0 +1,67 @@
+{
+  "info": {
+    "name": "HyperGear API",
+    "description": "Collection giai đoạn 1. Chạy service trực tiếp hoặc đổi baseUrl thành http://localhost:8080/api/<service> qua gateway.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "gatewayUrl", "value": "http://localhost:8080/api" },
+    { "key": "authUrl", "value": "http://localhost:8080/api/auth" },
+    { "key": "catalogUrl", "value": "http://localhost:8080/api/catalog" },
+    { "key": "orderUrl", "value": "http://localhost:8080/api/orders" }
+  ],
+  "item": [
+    {
+      "name": "Health checks",
+      "item": [
+        { "name": "Gateway", "request": { "method": "GET", "url": "{{gatewayUrl}}/healthz" } },
+        { "name": "Auth", "request": { "method": "GET", "url": "{{authUrl}}/healthz" } },
+        { "name": "Catalog", "request": { "method": "GET", "url": "{{catalogUrl}}/healthz" } },
+        { "name": "Order", "request": { "method": "GET", "url": "{{orderUrl}}/healthz" } }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"fullName\": \"Khách Hàng Demo\",\n  \"email\": \"customer@gmail.com\",\n  \"phone\": \"0900000000\",\n  \"password\": \"Customer@2026\",\n  \"confirmPassword\": \"Customer@2026\",\n  \"shippingAddress\": {\n    \"recipient\": \"Khách Hàng Demo\",\n    \"phone\": \"0900000000\",\n    \"street\": \"1 Nguyễn Huệ\",\n    \"ward\": \"Bến Nghé\",\n    \"province\": \"TP. Hồ Chí Minh\",\n    \"note\": \"Gọi trước khi giao\"\n  }\n}" },
+            "url": "{{authUrl}}/register"
+          }
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"customer@gmail.com\",\n  \"password\": \"Customer@2026\"\n}" },
+            "url": "{{authUrl}}/login"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Catalog",
+      "item": [
+        { "name": "Products filtered and sorted", "request": { "method": "GET", "url": "{{catalogUrl}}/products?page=1&limit=12&brand=ASUS&minPrice=1000000&maxPrice=30000000&sort=price-asc" } }
+      ]
+    },
+    {
+      "name": "Order",
+      "item": [
+        {
+          "name": "Quote with loyalty discount",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"lines\": [{ \"unitPrice\": 10000000, \"unitCost\": 7000000, \"quantity\": 1 }],\n  \"loyaltyDiscount\": 500000\n}" },
+            "url": "{{orderUrl}}/quote"
+          }
+        }
+      ]
+    }
+  ]
+}

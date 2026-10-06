@@ -1,0 +1,166 @@
+name: hypergear
+
+x-service-env: &service-env
+  NODE_ENV: production
+  MONGODB_URI: mongodb://mongo:27017/hypergear
+  REDIS_URL: redis://redis:6379
+  RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+  ELASTICSEARCH_URL: http://elasticsearch:9200
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./infra/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - web
+      - gateway-a
+      - gateway-b
+
+  gateway-a:
+    build:
+      context: .
+      dockerfile: services/api-gateway/Dockerfile
+    environment:
+      <<: *service-env
+      PORT: 3000
+      INSTANCE_NAME: gateway-a
+      AUTH_SERVICE_URL: http://auth-service:3001
+      CATALOG_SERVICE_URL: http://catalog-service:3002
+      ORDER_SERVICE_URL: http://order-service:3003
+      AI_SERVICE_URL: http://ai-service:3005
+    depends_on:
+      - auth-service
+      - catalog-service
+      - order-service
+
+  gateway-b:
+    build:
+      context: .
+      dockerfile: services/api-gateway/Dockerfile
+    environment:
+      <<: *service-env
+      PORT: 3000
+      INSTANCE_NAME: gateway-b
+      AUTH_SERVICE_URL: http://auth-service:3001
+      CATALOG_SERVICE_URL: http://catalog-service:3002
+      ORDER_SERVICE_URL: http://order-service:3003
+      AI_SERVICE_URL: http://ai-service:3005
+    depends_on:
+      - auth-service
+      - catalog-service
+      - order-service
+
+  auth-service:
+    build:
+      context: .
+      dockerfile: services/auth-service/Dockerfile
+    environment:
+      <<: *service-env
+      PORT: 3001
+      JWT_SECRET: ${JWT_SECRET:-development-only-secret}
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  catalog-service:
+    build:
+      context: .
+      dockerfile: services/catalog-service/Dockerfile
+    environment:
+      <<: *service-env
+      PORT: 3002
+    depends_on:
+      mongo:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+
+  order-service:
+    build:
+      context: .
+      dockerfile: services/order-service/Dockerfile
+    environment:
+      <<: *service-env
+      PORT: 3003
+    depends_on:
+      mongo:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  notification-service:
+    build:
+      context: .
+      dockerfile: services/notification-service/Dockerfile
+    environment:
+      <<: *service-env
+      PORT: 3004
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  ai-service:
+    build:
+      context: .
+      dockerfile: services/ai-service/Dockerfile
+    environment:
+      <<: *service-env
+      PORT: 3005
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+
+  mongo:
+    image: mongo:8
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    ports:
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.1.4
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: -Xms512m -Xmx512m
+    volumes:
+      - elastic-data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:9200/_cluster/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  mongo-data:
+  elastic-data:
