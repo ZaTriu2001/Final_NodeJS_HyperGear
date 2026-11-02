@@ -21,13 +21,14 @@
     "demo:local": "node scripts/local-demo.mjs",
     "demo:setup": "node scripts/setup.mjs",
     "test:messaging": "node --test tests/messaging.test.mjs",
-    "test:smoke": "node scripts/smoke.mjs"
+    "test:smoke": "node scripts/smoke.mjs",
+    "test:browser": "playwright test"
   },
   "engines": {
     "node": ">=24 <25"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "mongodb-memory-server": "^10.2.3"
   }
 }
-

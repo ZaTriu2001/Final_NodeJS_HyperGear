@@ -29,6 +29,10 @@ jobs:
         run: docker compose up -d --build --wait --wait-timeout 180
       - name: Verify checkout and SMTP emails
         run: node scripts/smoke.mjs
+      - name: Install Chromium for browser QA
+        run: npx playwright install --with-deps chromium --only-shell
+      - name: Verify desktop and mobile browser flows
+        run: npm run test:browser
       - name: Verify RabbitMQ retry and idempotency
         run: node --test tests/messaging.test.mjs
       - name: Logs on failure
