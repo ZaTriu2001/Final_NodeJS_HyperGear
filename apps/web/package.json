@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",
-    "vite": "latest",
+    "vite": "^8.3.5",
     "react": "latest",
     "react-dom": "latest",
     "react-router-dom": "latest",

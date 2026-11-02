@@ -69,6 +69,8 @@ Code liên kết tự động Gmail/Workspace cùng email. Email bên ngoài hai
 
 ## Giới hạn và bước kế tiếp
 
+- Dependency audit ngày 02/11/2026 sau cập nhật: production 0 cảnh báo; full audit còn 6 cảnh báo moderate trong chuỗi dev-tool ESLint/minimatch. Không dùng audit fix --force để ép hạ major ESLint; cần theo dõi bản vá upstream. Audit không thay thế kiểm thử bảo mật ứng dụng.
+
 - Trình duyệt thật/responsive cần kiểm tra lại khi Mac được mở khóa; các test React chạy trong jsdom, không được coi là screenshot QA.
 - SMTP không có exactly-once tuyệt đối: crash sau gửi trước khi ghi sent vẫn có thể tạo bản lặp. Ledger/Message-ID xử lý replay thông thường; test đã kiểm chứng.
 - M3 chưa hoàn tất: admin CRUD/filter đầy đủ, review/rating/Socket.IO/Redis, dashboard nâng cao, scale nghiệp vụ.
