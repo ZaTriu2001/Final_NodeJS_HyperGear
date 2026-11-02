@@ -1,8 +1,9 @@
 import { Link, NavLink } from 'react-router-dom';
-import { useCart } from '../state/CartContext';
+import { useCart, useAuth } from '../state/contexts';
 
 export default function Header() {
   const { count } = useCart();
+  const { user } = useAuth();
   return (
     <>
       <div className="topbar">Miễn phí tư vấn cấu hình • Giao hàng toàn quốc • Bảo hành minh bạch</div>
@@ -22,7 +23,7 @@ export default function Header() {
               <a className="nav-link" href="/#support">Hỗ trợ</a>
             </div>
             <div className="d-flex align-items-center gap-2">
-              <Link className="icon-button" to="/dang-nhap" aria-label="Tài khoản"><i className="bi bi-person" /></Link>
+              <Link className="icon-button" to={user ? "/tai-khoan" : "/dang-nhap"} aria-label="Tài khoản"><i className="bi bi-person" /></Link>
               <Link className="cart-button" to="/gio-hang" aria-label={`Giỏ hàng có ${count} sản phẩm`}>
                 <i className="bi bi-bag" />
                 <span>Giỏ hàng</span>

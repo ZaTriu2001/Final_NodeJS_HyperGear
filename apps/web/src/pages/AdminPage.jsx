@@ -1,13 +1,22 @@
-const metrics = [
-  ['bi-people', 'Khách hàng', '1.248', '+84 trong 30 ngày'],
-  ['bi-box-seam', 'Đơn hàng', '386', '+12,8% so với kỳ trước'],
-  ['bi-graph-up-arrow', 'Doanh thu', '2,84 tỷ', 'Đã ghi nhận thanh toán'],
-  ['bi-cash-stack', 'Lợi nhuận', '612 triệu', 'Sau giá vốn & loyalty'],
-];
-
+import { useState } from 'react';
+import { useResource } from '../lib/useResource';
+import { api, formatVnd, dateTime } from '../lib/api';
+import Feedback from '../components/Feedback';
 export default function AdminPage() {
-  return (
-    <div className="admin-shell"><aside className="admin-sidebar"><img src="/hypergear-logo.svg" alt="HyperGear" /><span>ADMIN CENTER</span>{['Tổng quan', 'Sản phẩm', 'Khách hàng', 'Đơn hàng', 'Điểm thành viên'].map((item, index) => <button className={index === 0 ? 'active' : ''} key={item}><i className={`bi ${['bi-grid', 'bi-box', 'bi-people', 'bi-receipt', 'bi-stars'][index]}`} />{item}</button>)}<small>Chỉ hiển thị các nhóm chức năng được đề bài cho phép.</small></aside><section className="admin-content"><header><div><span>THỨ NĂM, 01/10/2026</span><h1>Tổng quan cửa hàng</h1></div><div className="admin-user"><span>AD</span><div><strong>HyperGear Admin</strong><small>admin@gmail.com</small></div></div></header><div className="row g-3">{metrics.map(([icon, label, value, note]) => <div className="col-md-6 col-xl-3" key={label}><article className="metric-card"><i className={`bi ${icon}`} /><span>{label}</span><strong>{value}</strong><small>{note}</small></article></div>)}</div><div className="row g-4 mt-1"><div className="col-xl-8"><div className="chart-card"><div className="card-heading"><div><span>HIỆU SUẤT KINH DOANH</span><h2>Doanh thu và lợi nhuận</h2></div><select className="form-select"><option>Năm 2026</option><option>Quý hiện tại</option><option>Tháng hiện tại</option><option>Tuần hiện tại</option></select></div><div className="fake-chart"><div className="chart-y"><span>800tr</span><span>600tr</span><span>400tr</span><span>200tr</span><span>0</span></div><div className="bars">{[42, 58, 49, 72, 64, 86, 78, 94].map((height, index) => <div className="bar-group" key={index}><i style={{ height: `${height}%` }} /><b style={{ height: `${Math.round(height * 0.33)}%` }} /><span>T{index + 1}</span></div>)}</div></div><div className="chart-legend"><span><i className="revenue" />Doanh thu</span><span><i className="profit" />Lợi nhuận</span></div></div></div><div className="col-xl-4"><div className="chart-card"><div className="card-heading"><div><span>TOP DANH MỤC</span><h2>Sản phẩm đã bán</h2></div></div><div className="category-performance">{[['GPU', 82], ['Laptop', 69], ['CPU', 58], ['RAM', 47], ['Màn hình', 35]].map(([name, value]) => <div key={name}><span>{name}</span><div><i style={{ width: `${value}%` }} /></div><strong>{value}</strong></div>)}</div></div></div></div></section></div>
-  );
+  const { data, loading, error, reload } = useResource('/orders/admin/list');
+  const metrics = useResource('/orders/admin/metrics');
+  const [message, setMessage] = useState(''); const [busy, setBusy] = useState('');
+  const labels = { pending: 'Chờ xác nhận', confirmed: 'Đã xác nhận', shipping: 'Đang giao', delivered: 'Đã giao' };
+  const next = { pending: 'confirmed', confirmed: 'shipping', shipping: 'delivered' };
+  const advance = async order => {
+    setBusy(order.id); setMessage('');
+    try { await api('/orders/admin/' + order.id + '/status', { method: 'PATCH', body: { status: next[order.status] } }); reload(); }
+    catch (error) { setMessage(error.message); } finally { setBusy(''); }
+  };
+  return <div className="page-surface"><div className="container py-5"><h1>Quản trị đơn hàng</h1><p>20 đơn gần nhất.</p>
+    <Feedback loading={metrics.loading} error={metrics.error}>{metrics.data && <div className="row g-3 mb-4">{[['Đơn đã thanh toán', metrics.data.orders], ['Revenue', formatVnd(metrics.data.revenue)], ['Profit', formatVnd(metrics.data.profit)]].map(([label, value]) => <div className="col-md-4" key={label}><div className="account-card"><small>{label}</small><strong className="d-block fs-4">{value}</strong></div></div>)}</div>}</Feedback>
+    {message && <p role="alert" className="alert alert-danger">{message}</p>}
+    <Feedback loading={loading} error={error}>{data?.items.map(order => <article className="account-card mb-3" key={order.id}><div className="d-flex justify-content-between flex-wrap gap-2"><h2 className="h5">Đơn {order.id.slice(-8).toUpperCase()}</h2><span>{labels[order.status]}</span></div><p>{order.fullName} · {order.email} · {dateTime(order.createdAt)}</p><p>{order.shippingAddress.recipient} · {order.shippingAddress.phone}<br />{order.shippingAddress.street}, {order.shippingAddress.ward}, {order.shippingAddress.province}</p><ul>{order.lines.map(line => <li key={line.sku}>{line.productName} — {line.variantName} × {line.quantity}</li>)}</ul><p>Tổng thanh toán: <strong>{formatVnd(order.totalPaid)}</strong></p>{next[order.status] && <button className="btn btn-hyper" disabled={Boolean(busy)} onClick={() => advance(order)}>Chuyển: {labels[next[order.status]]}</button>}</article>)}</Feedback>
+  </div></div>;
 }
 

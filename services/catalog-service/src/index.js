@@ -1,97 +1,38 @@
 import 'dotenv/config';
-import cors from 'cors';
-import express from 'express';
-import helmet from 'helmet';
-import mongoose from 'mongoose';
-
-const app = express();
-const port = Number(process.env.PORT ?? 3002);
-
-const variantSchema = new mongoose.Schema({
-  sku: { type: String, required: true },
-  name: { type: String, required: true },
-  price: { type: Number, required: true, min: 0 },
-  costPrice: { type: Number, required: true, min: 0 },
-  image: { type: String, required: true, trim: true },
-  stock: { type: Number, required: true, min: 0 },
-}, { _id: false });
-
-const productSchema = new mongoose.Schema({
-  name: { type: String, required: true, trim: true },
-  slug: { type: String, required: true, unique: true, trim: true },
-  brand: { type: String, required: true, trim: true },
-  category: { type: String, required: true, trim: true },
-  description: { type: [String], default: [] },
-  images: { type: [String], default: [] },
-  rating: { type: Number, default: 0, min: 0, max: 5 },
-  sold: { type: Number, default: 0, min: 0 },
-  variants: { type: [variantSchema], validate: (items) => items.length > 0 },
-  active: { type: Boolean, default: true },
-}, { timestamps: true });
-
-productSchema.index({ name: 'text', brand: 'text', category: 'text' });
-productSchema.index({ category: 1, brand: 1, 'variants.price': 1 });
-const Product = mongoose.model('Product', productSchema);
-
-app.disable('x-powered-by');
-app.use(helmet());
-app.use(cors({ origin: true, credentials: true }));
-app.use(express.json({ limit: '64kb' }));
-
-app.get('/healthz', (_request, response) => {
-  response.json({ service: 'catalog-service', status: mongoose.connection.readyState === 1 ? 'ok' : 'degraded' });
+import { Product, publicProduct } from '@hypergear/core/models';
+import { appBase, start } from '@hypergear/core/http';
+import { normalize, integer, fail } from '@hypergear/core/validation';
+const app = appBase('catalog-service');
+app.get('/facets', async (_request, response) => {
+  const [categories, brands, total] = await Promise.all([Product.distinct('category', { active: true }), Product.distinct('brand', { active: true }), Product.countDocuments({ active: true })]);
+  response.json({ categories, brands, total });
 });
-
-app.get('/products', async (request, response, next) => {
-  try {
-    const page = Math.max(1, Number(request.query.page) || 1);
-    const limit = Math.min(50, Math.max(1, Number(request.query.limit) || 12));
-    const query = { active: true };
-    if (request.query.q) query.$text = { $search: String(request.query.q) };
-    if (request.query.category) query.category = request.query.category;
-    if (request.query.brand) query.brand = request.query.brand;
-    if (request.query.minRating) query.rating = { $gte: Number(request.query.minRating) };
-    if (request.query.minPrice || request.query.maxPrice) {
-      const price = {};
-      if (request.query.minPrice) price.$gte = Number(request.query.minPrice);
-      if (request.query.maxPrice) price.$lte = Number(request.query.maxPrice);
-      query.variants = { $elemMatch: { price } };
-    }
-    const sortMap = {
-      'name-asc': { name: 1 }, 'name-desc': { name: -1 },
-      'price-asc': { 'variants.price': 1 }, 'price-desc': { 'variants.price': -1 },
-    };
-    const [items, total] = await Promise.all([
-      Product.find(query).sort(sortMap[request.query.sort] ?? sortMap['name-asc']).skip((page - 1) * limit).limit(limit),
-      Product.countDocuments(query),
-    ]);
-    response.json({ items, page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) });
-  } catch (error) {
-    next(error);
-  }
+app.get('/products', async (request, response) => {
+  const params = request.query;
+  const page = integer(Number(params.page ?? 1), 'Trang', 1, 100000);
+  const limit = integer(Number(params.limit ?? 12), 'Số sản phẩm', 1, 12);
+  const query = { active: true };
+  for (const key of ['q', 'category', 'brand', 'sort']) if (params[key] && (typeof params[key] !== 'string' || params[key].length > 100)) fail(400, 'Bộ lọc không hợp lệ.');
+  if (params.q) query.searchText = { $regex: normalize(params.q).replace(/[.*+?^$(){}|[\]\\]/g, '\\$&') };
+  if (params.category) query.category = params.category;
+  if (params.brand) query.brand = params.brand;
+  if (params.minRating) { const rating = Number(params.minRating); if (!Number.isFinite(rating) || rating < 0 || rating > 5) fail(400, 'Đánh giá không hợp lệ.'); query.rating = { $gte: rating }; }
+  const minPrice = params.minPrice ? integer(Number(params.minPrice), 'Giá từ') : 0;
+  const maxPrice = params.maxPrice ? integer(Number(params.maxPrice), 'Giá đến') : Number.MAX_SAFE_INTEGER;
+  if (minPrice > maxPrice) fail(400, 'Giá từ phải nhỏ hơn hoặc bằng giá đến.');
+  if (params.minPrice || params.maxPrice) query.variants = { $elemMatch: { price: { $gte: minPrice, $lte: maxPrice } } };
+  const sortMap = { 'name-asc': { name: 1 }, 'name-desc': { name: -1 }, 'price-asc': { minPrice: 1 }, 'price-desc': { minPrice: -1 }, newest: { createdAt: -1 }, bestselling: { sold: -1 } };
+  if (params.sort && !sortMap[params.sort]) fail(400, 'Kiểu sắp xếp không hợp lệ.');
+  const [result] = await Product.aggregate([
+    { $match: query }, { $addFields: { minPrice: { $min: '$variants.price' }, inStock: { $cond: [{ $gt: [{ $sum: '$variants.stock' }, 0] }, 1, 0] } } },
+    { $sort: { inStock: -1, ...(sortMap[params.sort] ?? sortMap['name-asc']), _id: 1 } },
+    { $facet: { items: [{ $skip: (page - 1) * limit }, { $limit: limit }, { $project: { minPrice: 0, inStock: 0 } }], count: [{ $count: 'total' }] } },
+  ]).collation({ locale: 'vi', strength: 1 });
+  const total = result.count[0]?.total ?? 0;
+  response.json({ items: result.items.map(publicProduct), page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) });
 });
-
-app.get('/products/:slug', async (request, response, next) => {
-  try {
-    const product = await Product.findOne({ slug: request.params.slug, active: true });
-    if (!product) return response.status(404).json({ message: 'Không tìm thấy sản phẩm.' });
-    return response.json(product);
-  } catch (error) {
-    return next(error);
-  }
+app.get('/products/:slug', async (request, response) => {
+  const product = await Product.findOne({ slug: request.params.slug, active: true });
+  if (!product) fail(404, 'Không tìm thấy sản phẩm.'); response.json(publicProduct(product));
 });
-
-app.use((error, _request, response, _next) => {
-  console.error(error);
-  response.status(500).json({ message: 'Catalog service encountered an unexpected error.' });
-});
-
-async function start() {
-  await mongoose.connect(process.env.MONGODB_URI ?? 'mongodb://127.0.0.1:27017/hypergear');
-  app.listen(port, () => console.log(`[catalog-service] listening on port ${port}`));
-}
-
-start().catch((error) => {
-  console.error('[catalog-service] failed to start', error);
-  process.exit(1);
-});
+start(app, Number(process.env.PORT ?? 3002)).catch(error => { console.error(error.message); process.exit(1); });

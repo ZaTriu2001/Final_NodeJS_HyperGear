@@ -9,11 +9,19 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import AdminPage from './pages/AdminPage';
 import NotFoundPage from './pages/NotFoundPage';
+import AccountPage from './pages/AccountPage';
+import RecoveryPage from './pages/RecoveryPage';
+import CheckoutPage from './pages/CheckoutPage';
+import OrdersPage from './pages/OrdersPage';
+import RequireAuth from './components/RequireAuth';
+import { useCart } from './state/contexts';
 
 export default function App() {
+  const { message, error, reload } = useCart();
   return (
     <div className="app-shell">
       <Header />
+      {(message || error) && <div className={'cart-feedback ' + (error ? 'is-error' : '')} role={error ? 'alert' : 'status'}>{error || message}{error && <button className="btn btn-sm btn-link" onClick={() => reload().catch(() => {})}>Thử lại</button>}</div>}
       <main>
         <Routes>
           <Route path="/" element={<HomePage />} />
@@ -22,7 +30,13 @@ export default function App() {
           <Route path="/gio-hang" element={<CartPage />} />
           <Route path="/dang-nhap" element={<LoginPage />} />
           <Route path="/dang-ky" element={<RegisterPage />} />
-          <Route path="/admin" element={<AdminPage />} />
+          <Route path="/quen-mat-khau" element={<RecoveryPage />} />
+          <Route path="/khoi-phuc-mat-khau" element={<RecoveryPage key="reset" reset />} />
+          <Route path="/tai-khoan" element={<RequireAuth><AccountPage /></RequireAuth>} />
+          <Route path="/thanh-toan" element={<CheckoutPage />} />
+          <Route path="/don-hang" element={<RequireAuth><OrdersPage /></RequireAuth>} />
+          <Route path="/don-hang/:id" element={<RequireAuth><OrdersPage /></RequireAuth>} />
+          <Route path="/admin" element={<RequireAuth admin><AdminPage /></RequireAuth>} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </main>

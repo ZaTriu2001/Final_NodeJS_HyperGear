@@ -1,9 +1,6 @@
 FROM node:24-alpine
 WORKDIR /app
-COPY package*.json ./
-COPY services/notification-service/package.json ./services/notification-service/package.json
-RUN npm install --workspace @hypergear/notification-service --include-workspace-root
-COPY services/notification-service ./services/notification-service
-WORKDIR /app/services/notification-service
+COPY . .
+RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund
 USER node
-CMD ["npm", "start"]
+CMD ["node", "services/notification-service/src/index.js"]

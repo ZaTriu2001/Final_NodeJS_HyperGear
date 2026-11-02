@@ -1,11 +1,15 @@
 node_modules/
 dist/
 coverage/
+.local/
+test-results/
+playwright-report/
 .env
 .env.*
 !.env.example
 .DS_Store
 *.log
+erl_crash.dump
 .idea/
 .vscode/
 data/

@@ -6,14 +6,15 @@ import 'bootstrap/dist/js/bootstrap.bundle.min.js';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import './styles.css';
 import App from './App';
+import AuthProvider from './state/AuthProvider';
 import { CartProvider } from './state/CartContext';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>
-      <CartProvider>
+      <AuthProvider><CartProvider>
         <App />
-      </CartProvider>
+      </CartProvider></AuthProvider>
     </BrowserRouter>
   </React.StrictMode>,
 );

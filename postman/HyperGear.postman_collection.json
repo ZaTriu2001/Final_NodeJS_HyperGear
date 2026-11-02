@@ -1,64 +1,630 @@
 {
   "info": {
-    "name": "HyperGear API",
-    "description": "Collection giai đoạn 1. Chạy service trực tiếp hoặc đổi baseUrl thành http://localhost:8080/api/<service> qua gateway.",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    "name": "HyperGear M1–M2",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Run in order. Uses HttpOnly cookies, MongoDB products and simulated payment. Mailpit: http://localhost:8025. Only local demo data is created."
   },
   "variable": [
-    { "key": "gatewayUrl", "value": "http://localhost:8080/api" },
-    { "key": "authUrl", "value": "http://localhost:8080/api/auth" },
-    { "key": "catalogUrl", "value": "http://localhost:8080/api/catalog" },
-    { "key": "orderUrl", "value": "http://localhost:8080/api/orders" }
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080/api"
+    }
   ],
   "item": [
     {
-      "name": "Health checks",
-      "item": [
-        { "name": "Gateway", "request": { "method": "GET", "url": "{{gatewayUrl}}/healthz" } },
-        { "name": "Auth", "request": { "method": "GET", "url": "{{authUrl}}/healthz" } },
-        { "name": "Catalog", "request": { "method": "GET", "url": "{{catalogUrl}}/healthz" } },
-        { "name": "Order", "request": { "method": "GET", "url": "{{orderUrl}}/healthz" } }
-      ]
-    },
-    {
-      "name": "Auth",
-      "item": [
-        {
-          "name": "Register",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\n  \"fullName\": \"Khách Hàng Demo\",\n  \"email\": \"customer@gmail.com\",\n  \"phone\": \"0900000000\",\n  \"password\": \"Customer@2026\",\n  \"confirmPassword\": \"Customer@2026\",\n  \"shippingAddress\": {\n    \"recipient\": \"Khách Hàng Demo\",\n    \"phone\": \"0900000000\",\n    \"street\": \"1 Nguyễn Huệ\",\n    \"ward\": \"Bến Nghé\",\n    \"province\": \"TP. Hồ Chí Minh\",\n    \"note\": \"Gọi trước khi giao\"\n  }\n}" },
-            "url": "{{authUrl}}/register"
+      "name": "01 Health",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-HyperGear-Client",
+            "value": "web"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
           }
-        },
+        ],
+        "url": "{{baseUrl}}/healthz"
+      },
+      "event": [
         {
-          "name": "Login",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\n  \"email\": \"customer@gmail.com\",\n  \"password\": \"Customer@2026\"\n}" },
-            "url": "{{authUrl}}/login"
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Gateway ready', () => pm.response.to.have.status(200));"
+            ]
           }
         }
       ]
     },
     {
-      "name": "Catalog",
-      "item": [
-        { "name": "Products filtered and sorted", "request": { "method": "GET", "url": "{{catalogUrl}}/products?page=1&limit=12&brand=ASUS&minPrice=1000000&maxPrice=30000000&sort=price-asc" } }
+      "name": "02 Catalog (12/page)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-HyperGear-Client",
+            "value": "web"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/catalog/products?category=CPU&sort=price-asc"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('OK', () => pm.response.to.have.status(200));",
+              "const p = pm.response.json().items.find(p => p.variants.some(v => v.stock > 0));",
+              "pm.collectionVariables.set('productId', p.id); pm.collectionVariables.set('sku', p.variants.find(v => v.stock > 0).sku);",
+              "pm.test('No cost exposed', () => pm.expect(p.variants[0]).not.to.have.property('costPrice'));"
+            ]
+          }
+        }
       ]
     },
     {
-      "name": "Order",
-      "item": [
+      "name": "03 Register customer",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-HyperGear-Client",
+            "value": "web"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/auth/register",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"fullName\": \"Postman QA\",\n  \"phone\": \"0901234567\",\n  \"password\": \"Testing@2026\",\n  \"confirmPassword\": \"Testing@2026\",\n  \"shippingAddress\": {\n    \"recipient\": \"Postman QA\",\n    \"phone\": \"0901234567\",\n    \"street\": \"123 Demo\",\n    \"ward\": \"Phường Demo\",\n    \"province\": \"Hồ Chí Minh\"\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
         {
-          "name": "Quote with loyalty discount",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\n  \"lines\": [{ \"unitPrice\": 10000000, \"unitCost\": 7000000, \"quantity\": 1 }],\n  \"loyaltyDiscount\": 500000\n}" },
-            "url": "{{orderUrl}}/quote"
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.collectionVariables.set('testEmail', 'postman-' + Date.now() + '@example.com');"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Created', () => pm.response.to.have.status(201));",
+              "pm.collectionVariables.set('addressId', pm.response.json().user.addresses[0]._id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 Profile",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-HyperGear-Client",
+            "value": "web"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/auth/me"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Authenticated', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 Update profile",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "X-HyperGear-Client",
+            "value": "web"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/auth/me",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"fullName\": \"Postman Updated\",\n  \"phone\": \"0901234567\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Updated', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 Add cart item",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "X-HyperGear-Client",
+            "value": "web"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/orders/cart/items",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"productId\": \"{{productId}}\",\n  \"sku\": \"{{sku}}\",\n  \"quantity\": 1\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Cart saved', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 View cart",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-HyperGear-Client",
+            "value": "web"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/orders/cart"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('One item', () => pm.expect(pm.response.json().items).to.have.lengthOf(1));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 Quote",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-HyperGear-Client",
+            "value": "web"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/orders/quote",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"addressId\": \"{{addressId}}\",\n  \"redeemPoints\": 0\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Quoted', () => pm.response.to.have.status(200));",
+              "pm.collectionVariables.set('quoteHash', pm.response.json().quoteHash);",
+              "pm.collectionVariables.set('paymentKey', pm.variables.replaceIn('{{$guid}}'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "09 Pay simulated",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-HyperGear-Client",
+            "value": "web"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "{{paymentKey}}"
+          }
+        ],
+        "url": "{{baseUrl}}/orders",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"addressId\": \"{{addressId}}\",\n  \"redeemPoints\": 0,\n  \"quoteHash\": \"{{quoteHash}}\",\n  \"paymentResult\": \"success\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Paid', () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
+              "pm.collectionVariables.set('orderId', pm.response.json().id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10 Retry same payment (no duplicate)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-HyperGear-Client",
+            "value": "web"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "{{paymentKey}}"
+          }
+        ],
+        "url": "{{baseUrl}}/orders",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"addressId\": \"{{addressId}}\",\n  \"redeemPoints\": 0,\n  \"quoteHash\": \"{{quoteHash}}\",\n  \"paymentResult\": \"success\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Replay returns existing order', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get('orderId')); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "11 Purchase history",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-HyperGear-Client",
+            "value": "web"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/orders"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('History available', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "12 Purchase details",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-HyperGear-Client",
+            "value": "web"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/orders/{{orderId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Snapshot and timeline', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().statusHistory).to.have.lengthOf(1); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "13 Loyalty ledger",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-HyperGear-Client",
+            "value": "web"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/orders/loyalty"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Points earned', () => pm.expect(pm.response.json().balance).to.be.greaterThan(0));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "14 Request password reset (see Mailpit)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-HyperGear-Client",
+            "value": "web"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/auth/forgot-password",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{testEmail}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Email queued', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "15 Login admin",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-HyperGear-Client",
+            "value": "web"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/auth/login",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"admin@gmail.com\",\n  \"password\": \"HyperGear@2026\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Admin authenticated', () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "16 Admin confirm order",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "X-HyperGear-Client",
+            "value": "web"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/orders/admin/{{orderId}}/status",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"confirmed\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Confirmed', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().status).to.eql('confirmed'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "17 Admin metrics",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-HyperGear-Client",
+            "value": "web"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/orders/admin/metrics"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Revenue and profit', () => { pm.response.to.have.status(200); pm.expect(pm.response.json()).to.have.property('profit'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "18 Logout",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-HyperGear-Client",
+            "value": "web"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/auth/logout",
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Logged out', () => pm.response.to.have.status(200));"
+            ]
           }
         }
       ]

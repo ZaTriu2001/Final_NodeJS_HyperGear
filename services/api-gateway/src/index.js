@@ -1,5 +1,4 @@
 import 'dotenv/config';
-import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
 import { createProxyMiddleware } from 'http-proxy-middleware';
@@ -10,7 +9,6 @@ const instance = process.env.INSTANCE_NAME ?? 'gateway-local';
 
 app.disable('x-powered-by');
 app.use(helmet());
-app.use(cors({ origin: true, credentials: true }));
 
 app.get('/healthz', (_request, response) => {
   response.json({ service: 'api-gateway', instance, status: 'ok', timestamp: new Date().toISOString() });
@@ -32,6 +30,6 @@ services.forEach(([route, target]) => {
 
 app.use((_request, response) => response.status(404).json({ message: 'API route not found' }));
 
-app.listen(port, () => {
+app.listen(port, process.env.HOST ?? '0.0.0.0', () => {
   console.log(`[${instance}] listening on port ${port}`);
 });

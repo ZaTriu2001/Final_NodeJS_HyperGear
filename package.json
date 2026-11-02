@@ -14,11 +14,20 @@
     "lint": "npm run lint --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "preview": "npm run preview --workspace @hypergear/web",
-    "docker:up": "docker compose up -d",
-    "docker:down": "docker compose down"
+    "docker:up": "docker compose up -d --build",
+    "docker:down": "docker compose down",
+    "seed": "node scripts/seed.mjs",
+    "test:integration": "node --test --test-concurrency=1 tests/integration.test.mjs",
+    "demo:local": "node scripts/local-demo.mjs",
+    "demo:setup": "node scripts/setup.mjs",
+    "test:messaging": "node --test tests/messaging.test.mjs",
+    "test:smoke": "node scripts/smoke.mjs"
   },
   "engines": {
     "node": ">=24 <25"
+  },
+  "devDependencies": {
+    "mongodb-memory-server": "^10.2.3"
   }
 }
 

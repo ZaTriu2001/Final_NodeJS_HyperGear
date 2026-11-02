@@ -6,7 +6,7 @@
 - Mỗi chức năng lớn: 1 Issue -> 1 branch `feature/<issue-number>-<ten-ngan>` -> 1 Pull Request.
 - Người còn lại review PR trước khi merge.
 - Không commit trực tiếp vào `main`.
-- Mỗi người tối thiểu 2 commit/tuần từ 20/09/2026; chụp GitHub Insights hàng tuần làm bằng chứng Teamworking.
+- Theo cập nhật 02/11/2026: không áp deadline cũ hoặc chỉ tiêu 2 commit/tuần. Vẫn lưu đóng góp, PR và review thật của hai người.
 
 GitHub Insights không phải một tiêu chí độc lập trong file Excel, nhưng đề PDF và rubric số 33 yêu cầu bằng chứng GitHub Insights để chấm đủ 0,5 điểm Teamworking.
 
@@ -25,10 +25,10 @@ Các prefix commit: `feat`, `fix`, `test`, `docs`, `refactor`, `chore`.
 
 | Milestone | Thời gian | Mục tiêu |
 |---|---|---|
-| M1 - Foundation & Storefront | 20/09-04/10 | Repo, CI, Docker, UI, landing, catalog, product detail, cart |
-| M2 - Account & Commerce Core | 05/10-11/10 | Auth, profile, address, checkout, order, loyalty, email |
-| M3 - Admin, Realtime & Scaling | 12/10-18/10 | Admin CRUD, dashboard, review/rating, Socket.IO, scaling |
-| M4 - Bonus, QA & Submission | 19/10-24/10 | Elasticsearch, AI RAG, test, seed, evidence, README, video checklist |
+| M1 - Foundation & Storefront | Theo thứ tự M1 | Repo, CI, Docker, UI, landing, catalog, product detail, cart |
+| M2 - Account & Commerce Core | Sau M1 | Auth, profile, address, checkout, order, loyalty, email |
+| M3 - Admin, Realtime & Scaling | Sau M2 | Admin CRUD, dashboard, review/rating, Socket.IO, scaling |
+| M4 - Bonus, QA & Submission | Sau M3 | Elasticsearch, AI RAG, test, seed, evidence, README, video checklist |
 
 ## Danh sách Issue đề xuất
 
@@ -83,7 +83,7 @@ Tổng điểm rubric chủ động bỏ: **0,5 điểm**. Loyalty discount khô
 ## Nhịp làm việc 2 người
 
 - Thứ Hai 20:00: chọn Issue trong `Ready`, xác nhận owner và mục tiêu tuần.
-- Mỗi người tạo ít nhất 2 commit có nội dung thật trong tuần; không chia một thay đổi giả tạo thành nhiều commit.
+- Commit theo thay đổi có ý nghĩa; không áp chỉ tiêu số lần mỗi tuần.
 - Khi xong Issue: tự test -> mở PR -> người còn lại review -> sửa feedback -> merge.
 - Cuối tuần: chụp Insights/Contributors, Project Board và PR review vào thư mục nộp `git/`.
 

@@ -2,20 +2,37 @@ name: HyperGear CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'feature/**']
   pull_request:
     branches: [main]
 
 jobs:
   verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
-      - run: npm install --no-audit --no-fund
+      - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npm run lint
       - run: npm test
       - run: npm run build
+      - run: npm run test:integration
+        env:
+          MONGOMS_DOWNLOAD_DIR: ${{ github.workspace }}/.local/mongodb-binaries
+      - run: npm run demo:setup && docker compose config --quiet
+      - name: Start full Docker stack
+        run: docker compose up -d --build --wait --wait-timeout 180
+      - name: Verify checkout and SMTP emails
+        run: node scripts/smoke.mjs
+      - name: Verify RabbitMQ retry and idempotency
+        run: node --test tests/messaging.test.mjs
+      - name: Logs on failure
+        if: failure()
+        run: docker compose logs --no-color --tail=100
+      - name: Stop containers
+        if: always()
+        run: docker compose down
