@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { AuthContext, CartContext } from '../state/contexts';
+import { AuthContext, CartContext, useCart } from '../state/contexts';
 import { CartProvider } from '../state/CartContext';
 import { readGuestCart, validQuantity, cartLine } from '../state/cart-utils';
 import CheckoutPage from '../pages/CheckoutPage';
@@ -18,6 +18,10 @@ const product = { id: 'c'.repeat(24), _id: 'c'.repeat(24), slug: 'demo', name: '
 const item = { key: product.id + ':SKU1', product, variant: product.variants[0], quantity: 1 };
 function providers(element, auth = {}, cart = {}) {
   return render(<MemoryRouter><AuthContext.Provider value={{ ready: true, user, ...auth }}><CartContext.Provider value={{ items: [item], busy: false, ...cart }}>{element}</CartContext.Provider></AuthContext.Provider></MemoryRouter>);
+}
+function CartRetryProbe() {
+  const cart = useCart();
+  return <><span>{cart.error}</span><button onClick={() => cart.reload()}>Retry cart</button><span>Count: {cart.items.length}</span></>;
 }
 describe('cart input and persistence', () => {
   it('rejects fractional/NaN quantities and corrupt storage', () => {
@@ -39,6 +43,18 @@ describe('cart input and persistence', () => {
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 503, json: async () => ({ message: 'offline' }) })));
     render(<AuthContext.Provider value={{ user, ready: true }}><CartProvider><span>cart</span></CartProvider></AuthContext.Provider>);
     await waitFor(() => expect(fetch).toHaveBeenCalled()); expect(readGuestCart(localStorage)).toHaveLength(1);
+  });
+  it('retries a failed merge with the same id and clears guest storage only on success', async () => {
+    localStorage.setItem('hypergear-cart', JSON.stringify([item]));
+    const fetchMock = vi.fn().mockRejectedValueOnce(new Error('offline')).mockImplementation(() => response({ items: [item] }));
+    vi.stubGlobal('fetch', fetchMock);
+    render(<AuthContext.Provider value={{ user, ready: true }}><CartProvider><CartRetryProbe /></CartProvider></AuthContext.Provider>);
+    await screen.findByText('offline');
+    fireEvent.click(screen.getByRole('button', { name: 'Retry cart' }));
+    await screen.findByText('Count: 1');
+    expect(fetchMock.mock.calls[1][0]).toBe('/api/orders/cart/merge');
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).mergeId).toBe(JSON.parse(fetchMock.mock.calls[1][1].body).mergeId);
+    expect(localStorage.getItem('hypergear-cart')).toBeNull();
   });
 });
 describe('authentication and checkout UI', () => {

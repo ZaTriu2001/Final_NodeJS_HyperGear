@@ -3,6 +3,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { randomUUID } from 'node:crypto';
 const base = process.env.SMOKE_BASE_URL ?? 'http://localhost:8080';
 const mailBase = process.env.SMOKE_MAIL_URL ?? 'http://localhost:8025';
+const startedAt = Date.now();
 function client() {
   let cookie = '';
   return async (path, method = 'GET', body, headers = {}) => {
@@ -26,7 +27,7 @@ await admin('/orders/admin/' + order.id + '/status', 'PATCH', { status: 'confirm
 await customer('/auth/forgot-password', 'POST', { email: 'customer@gmail.com' });
 let messages = [];
 for (let i = 0; i < 60; i++) {
-  const list = await (await fetch(mailBase + '/api/v1/messages')).json(); messages = list.messages ?? [];
+  const list = await (await fetch(mailBase + '/api/v1/messages')).json(); messages = (list.messages ?? []).filter(message => Date.parse(message.Created) >= startedAt);
   const receipt = messages.find(m => m.Subject.includes('Biên nhận') && m.Subject.includes(order.id));
   const confirmed = messages.find(m => m.Subject.includes('Đã xác nhận') && m.Subject.includes(order.id));
   const reset = messages.find(m => m.Subject.includes('Khôi phục mật khẩu'));

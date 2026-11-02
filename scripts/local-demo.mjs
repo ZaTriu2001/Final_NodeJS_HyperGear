@@ -1,11 +1,13 @@
 // Native fallback; real MongoDB WiredTiger replica set, persisted in .local/mongo.
 import 'dotenv/config';
-import { MongoMemoryReplSet } from 'mongodb-memory-server';
+import { MongoMemoryServer } from 'mongodb-memory-server';
+import mongoose from 'mongoose';
+import { setTimeout as delay } from 'node:timers/promises';
 import { spawn } from 'node:child_process';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { once } from 'node:events';
-import { startNativeInfrastructure } from './native-infra.mjs';
+import { assertPortsAvailable, startNativeInfrastructure } from './native-infra.mjs';
 const messaging = process.argv.includes('--with-messaging');
 const children = [];
 let repl; let stopping = false;
@@ -17,16 +19,44 @@ async function stop(code = 0) {
 }
 process.on('SIGINT', () => stop()); process.on('SIGTERM', () => stop());
 try {
+  await mkdir('.local', { recursive: true });
+  // A persisted replica set retains its host:port; never choose a new random port on restart.
+  const portFile = '.local/mongo-port';
+  let mongoPort;
+  try { mongoPort = Number(await readFile(portFile, 'utf8')); }
+  catch (error) { if (error.code !== 'ENOENT') throw error; mongoPort = 27018; await writeFile(portFile, String(mongoPort)); }
+  if (!Number.isInteger(mongoPort) || mongoPort < 1024 || mongoPort > 65535) throw new Error('Invalid .local/mongo-port');
+  await assertPortsAvailable([mongoPort, 3001, 3002, 3003, 3080, 8080]);
   if (messaging) children.push(...await startNativeInfrastructure());
   const dbPath = resolve('.local/mongo'); await mkdir(dbPath, { recursive: true });
-  repl = await MongoMemoryReplSet.create({ binary: { version: '8.0.16', downloadDir: resolve('.local/mongodb-binaries') },
-    replSet: { name: 'rs0', count: 1, storageEngine: 'wiredTiger' }, instanceOpts: [{ dbPath }] });
-  const env = { ...process.env, MONGODB_URI: repl.getUri('hypergear'), PUBLIC_ORIGIN: 'http://localhost:8080', HOST: '127.0.0.1' };
+  repl = await MongoMemoryServer.create({ binary: { version: '8.0.16', downloadDir: resolve('.local/mongodb-binaries') },
+    instance: { dbPath, port: mongoPort, ip: '127.0.0.1', replSet: 'rs0', storageEngine: 'wiredTiger' } });
+  const client = new mongoose.mongo.MongoClient(repl.getUri(), { directConnection: true });
+  try {
+    await client.connect();
+    const admin = client.db('admin');
+    try { await admin.command({ replSetGetConfig: 1 }); }
+    catch (error) {
+      if (error.code !== 94) throw error;
+      await admin.command({ replSetInitiate: { _id: 'rs0', members: [{ _id: 0, host: '127.0.0.1:' + mongoPort }] } });
+    }
+    let primary = false;
+    for (let attempt = 0; attempt < 60; attempt++) {
+      if ((await admin.command({ hello: 1 })).isWritablePrimary) { primary = true; break; }
+      await delay(500);
+    }
+    if (!primary) throw new Error('MongoDB did not elect a primary. Preserve .local/mongo-port when restarting.');
+  } finally { await client.close(); }
+  const env = { ...process.env, MONGODB_URI: repl.getUri('hypergear') + '?replicaSet=rs0', PUBLIC_ORIGIN: 'http://localhost:8080', HOST: '127.0.0.1' };
   const run = (script, extra = {}, args = [], watch = true) => {
     const child = spawn(process.execPath, [script, ...args], { env: { ...env, ...extra }, stdio: 'inherit' });
     children.push(child);
     child.on('error', error => { console.error(error.message); stop(1); });
-    if (watch) child.on('exit', code => { if (!stopping) { console.error(script + ' stopped with code ' + code); stop(1); } });
+    if (watch) child.on('exit', (code, signal) => {
+      if (stopping) return;
+      if (signal === 'SIGINT' || signal === 'SIGTERM') { stop(); return; }
+      console.error(script + ' stopped with code ' + code); stop(1);
+    });
     return child;
   };
   const seed = run('scripts/seed.mjs', {}, [], false);

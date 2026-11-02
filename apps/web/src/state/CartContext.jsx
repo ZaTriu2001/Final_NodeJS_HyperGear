@@ -66,12 +66,19 @@ export function CartProvider({ children }) {
     return userId ? (await api('/orders/cart/items/' + encodeURIComponent(item.variant.sku), { method: 'DELETE' })).items : items.filter(value => value.key !== key);
   });
   const reload = async () => {
+    const generation = epoch.current;
     setBusy(true); setError('');
     try {
-      const data = userId ? await api('/orders/cart') : await api('/orders/cart/resolve', { method: 'POST', body: { lines: guest.current.map(cartLine) } });
+      const lines = guest.current.map(cartLine);
+      let mergeId = localStorage.getItem('hypergear-merge-id');
+      if (!mergeId) { mergeId = crypto.randomUUID(); localStorage.setItem('hypergear-merge-id', mergeId); }
+      const data = userId ? (lines.length ? await api('/orders/cart/merge', { method: 'POST', body: { lines, mergeId } }) : await api('/orders/cart')) : await api('/orders/cart/resolve', { method: 'POST', body: { lines } });
+      if (generation !== epoch.current) return;
       setItems(data.items); setOwner(identity);
-    } catch (error) { setError(error.message); throw error; }
-    finally { setBusy(false); }
+      if (userId) { guest.current = []; localStorage.removeItem('hypergear-cart'); localStorage.removeItem('hypergear-merge-id'); }
+      else { guest.current = data.items; localStorage.setItem('hypergear-cart', JSON.stringify(data.items)); }
+    } catch (error) { if (generation === epoch.current) setError(error.message); throw error; }
+    finally { if (generation === epoch.current) setBusy(false); }
   };
   return <CartContext.Provider value={{ items: owner === identity ? items : [], busy: pending, error, message, addItem, updateQuantity, removeItem, reload,
     count: items.reduce((sum, item) => sum + item.quantity, 0), subtotal: items.reduce((sum, item) => sum + item.variant.price * item.quantity, 0) }}>{children}</CartContext.Provider>;

@@ -13,8 +13,9 @@
 | Loyalty | Cộng/trừ/ledger đúng công thức; đơn dùng điểm không sinh điểm |
 | Đơn | Customer history/detail/timeline, ownership; admin tối thiểu để xác nhận/chuyển tiến trạng thái |
 | Email | Outbox → RabbitMQ → SMTP Mailpit; receipt + admin confirmation + recovery; retry 5 lần và dead-letter |
-| Tests local | 10 frontend + 3 finance + 12 integration + 1 messaging đều đạt; live smoke đạt; lint/build đạt |
-| GitHub/Docker | Workflow clean build + full Compose + smoke/messaging đã thêm; kết quả CI ghi ở PR |
+| Tests local | 11 frontend + 3 finance + 12 integration + 1 messaging đều đạt; live smoke đạt; lint/build đạt |
+| GitHub/Docker | Full Compose + smoke/messaging đạt trên GitHub Actions (run 41482656356); bản cập nhật cuối tiếp tục được CI kiểm tra |
+| Postman | Đã chạy collection bằng Newman: 18 request, 19 assertions, 0 lỗi |
 
 Không tính OAuth là đã hoàn thành nghiệm thu: code authorization-code/PKCE/state/nonce/ID-token đã triển khai, nhưng chưa có GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET của nhóm để chạy đăng nhập Google thật. Nút Google chỉ xuất hiện khi cấu hình đủ. Không giả lập Google để ghi hoàn tất.
 
@@ -44,6 +45,8 @@ npm run demo:local -- --with-messaging
 ~~~
 
 Nhấn Ctrl+C để dừng tiến trình do script tạo. MongoDB nằm ở .local/mongo; RabbitMQ .local/rabbitmq-data; Mailpit .local/mailpit.db. Dữ liệu native và volume Docker là hai bộ khác nhau.
+
+Giữ nguyên .local/mongo-port đi cùng .local/mongo: replica set lưu địa chỉ cổng trong cấu hình. Script phát hiện cổng bị chiếm và yêu cầu dừng demo cũ, không tự xóa dữ liệu.
 
 Nếu chỉ cần web/API mà không cần email: npm run demo:local. Khi đó email nằm trong outbox, chưa được gửi. Lần đầu cần mạng để tải binary MongoDB chính thức.
 
