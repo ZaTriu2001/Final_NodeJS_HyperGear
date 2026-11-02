@@ -35,7 +35,7 @@ export default function ProductPage() {
           <p className="detail-lead">{product.shortDescription}</p>
           <h2 className="option-title">Chọn phiên bản</h2>
           <div className="variant-options">{product.variants.map((item) => <button key={item.sku} className={variant.sku === item.sku ? 'active' : ''} disabled={item.stock === 0} onClick={() => { setSelectedSku(item.sku); setActiveImage(-1); }}><strong>{item.name}</strong><span>{formatVnd(item.price)}</span><small>{item.stock ? `Còn ${item.stock}` : 'Hết hàng'}</small></button>)}</div>
-          <button className="btn btn-hyper btn-lg w-100 mt-4" disabled={!variant.stock || busy} onClick={() => addItem(product, variant)}><i className="bi bi-bag-plus me-2" />Thêm vào giỏ hàng</button>
+          <button className="btn btn-hyper btn-lg w-100 mt-4" disabled={!variant.stock || busy} onClick={() => addItem(product, variant)}><i className="bi bi-bag-plus me-2" aria-hidden="true" />Thêm vào giỏ hàng</button>
           <div className="stock-note"><i className="bi bi-check-circle-fill" /> Tồn kho được quản lý độc lập theo từng phiên bản.</div>
         </div>
       </div></div>
