@@ -12,6 +12,7 @@ test('storefront, responsive menu, filters and pagination', async ({ page }, tes
   await page.screenshot({ path: testInfo.outputPath('home.png'), fullPage: true });
   if (testInfo.project.name === 'mobile') await page.getByRole('button', { name: 'Mở menu' }).click();
   await page.locator('header').getByRole('link', { name: 'Sản phẩm', exact: true }).click();
+  if (testInfo.project.name === 'mobile') await expect(page.getByRole('button', { name: 'Mở menu' })).toHaveAttribute('aria-expanded', 'false');
   await expect(page.locator('.product-card')).toHaveCount(12);
   await page.getByRole('button', { name: '2', exact: true }).click();
   await expect(page).toHaveURL(/page=2/);
