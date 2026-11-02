@@ -57,6 +57,8 @@ npm run test:messaging
 - CI: lint → unit/frontend → build → integration → Docker full stack → smoke → messaging.
 - Postman: import postman/HyperGear.postman_collection.json; chạy collection theo thứ tự. Cookie được Postman giữ tự động; body không gửi giá vốn/giá bán do client quyết định.
 
+Browser E2E (cần stack đang chạy ở localhost:8080): chạy `npx playwright install chromium --only-shell`, sau đó `npm run test:browser`. Có hai viewport desktop 1440px và mobile 390px; kiểm tra menu/filter/phân trang và luồng guest → đăng ký → checkout → tải lại đơn. GitHub Actions cũng chạy bộ này; ảnh và báo cáo nằm trong artifact `browser-qa` (giữ 14 ngày). Đây là Chromium mô phỏng viewport mobile, không thay thế kiểm thử Safari trên iPhone thật.
+
 ## Các chức năng hiện có
 
 - Home: mới nhất, bán chạy và 3 danh mục riêng; phân trang từng khu vực.
