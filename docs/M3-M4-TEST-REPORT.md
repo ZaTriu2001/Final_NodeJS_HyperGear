@@ -2,6 +2,8 @@
 
 Ngày 03/11/2026. Bản code đã kiểm chứng: `2df8475`, nhánh `feature/m3-m4-completion`.
 
+Thay đổi ở [PR #2](https://github.com/ZaTriu2001/Final_NodeJS_HyperGear/pull/2), base là nhánh M1–M2 của PR #1; chưa merge main. Demo [dashboard](evidence/m3-admin-demo.jpg) được chụp sau khi áp dụng thống kê theo quý.
+
 ## Kết quả có bằng chứng
 
 [GitHub Actions 41598615745](https://github.com/ZaTriu2001/Final_NodeJS_HyperGear/actions/runs/41598615745) đạt toàn bộ workflow, bao gồm bộ kiểm tra logic mới. Bản trước `3a8d3bc` cũng đã đạt 10 browser flows. Artifact `browser-qa` chứa screenshots/report/trace, giữ 14 ngày; cần tải trước khi artifact hết hạn nếu dùng làm hồ sơ nộp.
