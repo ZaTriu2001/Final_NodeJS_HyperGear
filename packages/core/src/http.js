@@ -67,4 +67,5 @@ export async function start(app, port) {
   await initModels(); app.use(errorHandler);
   const server = app.listen(port, process.env.HOST ?? '0.0.0.0', () => console.log(`Listening on ${port}`));
   process.once('SIGTERM', () => server.close(() => mongoose.disconnect().then(() => process.exit(0))));
+  return server;
 }

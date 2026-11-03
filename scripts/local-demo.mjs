@@ -26,7 +26,7 @@ try {
   try { mongoPort = Number(await readFile(portFile, 'utf8')); }
   catch (error) { if (error.code !== 'ENOENT') throw error; mongoPort = 27018; await writeFile(portFile, String(mongoPort)); }
   if (!Number.isInteger(mongoPort) || mongoPort < 1024 || mongoPort > 65535) throw new Error('Invalid .local/mongo-port');
-  await assertPortsAvailable([mongoPort, 3001, 3002, 3003, 3080, 8080]);
+  await assertPortsAvailable([mongoPort, 3001, 3002, 3003, 3005, 3080, 8080]);
   if (messaging) children.push(...await startNativeInfrastructure());
   const dbPath = resolve('.local/mongo'); await mkdir(dbPath, { recursive: true });
   repl = await MongoMemoryServer.create({ binary: { version: '8.0.16', downloadDir: resolve('.local/mongodb-binaries') },
@@ -47,7 +47,7 @@ try {
     }
     if (!primary) throw new Error('MongoDB did not elect a primary. Preserve .local/mongo-port when restarting.');
   } finally { await client.close(); }
-  const env = { ...process.env, MONGODB_URI: repl.getUri('hypergear') + '?replicaSet=rs0', PUBLIC_ORIGIN: 'http://localhost:8080', HOST: '127.0.0.1' };
+  const env = { ...process.env, REDIS_URL: process.env.NATIVE_REDIS_URL ?? '', ELASTICSEARCH_URL: process.env.NATIVE_ELASTICSEARCH_URL ?? '', MONGODB_URI: repl.getUri('hypergear') + '?replicaSet=rs0', PUBLIC_ORIGIN: 'http://localhost:8080', HOST: '127.0.0.1' };
   const run = (script, extra = {}, args = [], watch = true) => {
     const child = spawn(process.execPath, [script, ...args], { env: { ...env, ...extra }, stdio: 'inherit' });
     children.push(child);
@@ -64,6 +64,7 @@ try {
   run('services/auth-service/src/index.js', { PORT: '3001' });
   run('services/catalog-service/src/index.js', { PORT: '3002' });
   run('services/order-service/src/index.js', { PORT: '3003' });
+  run('services/ai-service/src/index.js', { PORT: '3005' });
   run('services/api-gateway/src/index.js', { PORT: '3080' });
   if (messaging) run('services/notification-service/src/index.js', { RABBITMQ_URL: 'amqp://guest:guest@127.0.0.1:5672', SMTP_HOST: '127.0.0.1', SMTP_PORT: '1025', SMTP_USER: '', SMTP_PASSWORD: '' });
   run('node_modules/vite/bin/vite.js', { HYPERGEAR_LOCAL: '1' }, ['--config', 'apps/web/vite.config.js']);

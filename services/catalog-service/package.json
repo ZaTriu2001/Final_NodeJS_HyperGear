@@ -10,11 +10,14 @@
   },
   "dependencies": {
     "@elastic/elasticsearch": "latest",
+    "@hypergear/core": "*",
+    "@socket.io/redis-adapter": "^8.3.0",
     "cors": "latest",
     "dotenv": "latest",
     "express": "latest",
     "helmet": "latest",
     "mongoose": "latest",
-    "@hypergear/core": "*"
+    "redis": "^5.12.1",
+    "socket.io": "^4.8.4"
   }
 }

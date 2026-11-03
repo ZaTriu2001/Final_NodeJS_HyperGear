@@ -9,7 +9,7 @@ export default function Footer() {
           </div>
           <div className="col-6 col-lg-2">
             <h3 className="footer-title">Khám phá</h3>
-            <a href="/san-pham">Sản phẩm</a><a href="/#build-pc">Build PC</a><a href="/gio-hang">Giỏ hàng</a>
+            <a href="/san-pham">Sản phẩm</a><a href="/build-pc">Build PC</a><a href="/gio-hang">Giỏ hàng</a>
           </div>
           <div className="col-6 col-lg-2">
             <h3 className="footer-title">Tài khoản</h3>

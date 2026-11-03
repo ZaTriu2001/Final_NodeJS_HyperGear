@@ -9,6 +9,7 @@ export default defineConfig({
     host: '127.0.0.1',
     proxy: {
       '/api': process.env.HYPERGEAR_LOCAL ? 'http://127.0.0.1:3080' : 'http://localhost:8080',
+      '/socket.io': { target: process.env.HYPERGEAR_LOCAL ? 'http://127.0.0.1:3080' : 'http://localhost:8080', ws: true },
     },
   },
   root: fileURLToPath(new URL('.', import.meta.url)),

@@ -83,7 +83,7 @@ export default function HomePage() {
               <span className="hero-kicker">HYPERGEAR AI BUILDER</span>
               <h2>Build PC đúng nhu cầu,<br />không lãng phí ngân sách.</h2>
               <p>Trợ lý AI sẽ phân tích mục đích sử dụng, ngân sách và độ tương thích để đề xuất cấu hình phù hợp từ sản phẩm tại HyperGear.</p>
-              <button className="btn btn-light" disabled><i className="bi bi-stars me-2" />Sắp ra mắt</button>
+              <Link className="btn btn-light" to="/build-pc">Tư vấn cấu hình với AI</Link>
             </div>
             <div className="col-lg-5"><div className="ai-orbit"><i className="bi bi-cpu-fill" /><span /><span /><span /></div></div>
           </div>

@@ -11,7 +11,7 @@ before(async () => { stack = await startTestStack(); await mongoose.connect(stac
 after(async () => { await mongoose.disconnect(); if (stack) await stack.stop(); });
 
 test('catalog reads seeded MongoDB, hides cost, filters/searches Vietnamese and paginates', async () => {
-  const list = await guest('catalog', '/products'); assert.equal(list.status, 200); assert.equal(list.data.total, 42); assert.equal(list.data.items.length, 12); assert.equal(list.data.totalPages, 4);
+  const list = await guest('catalog', '/products'); assert.equal(list.status, 200); assert.equal(list.data.total, 50); assert.equal(list.data.items.length, 12); assert.equal(list.data.totalPages, 5);
   assert.ok(list.data.items.every(p => p.variants.every(v => v.costPrice === undefined)));
   const match = await guest('catalog', '/products?q=man%20hinh'); assert.equal(match.data.total, 8);
   const filtered = await guest('catalog', '/products?category=Laptop&brand=ASUS&maxPrice=20000000&minRating=4&sort=price-asc');
@@ -19,7 +19,7 @@ test('catalog reads seeded MongoDB, hides cost, filters/searches Vietnamese and 
   assert.equal((await guest('catalog', '/products?minPrice=9&maxPrice=1')).status, 400);
   assert.equal((await guest('catalog', '/products?page=1.2')).status, 400);
   assert.equal((await guest('catalog', '/products/does-not-exist')).status, 404);
-  const last = await guest('catalog', '/products?page=4'); assert.equal(last.data.items.at(-1).slug, 'razer-deathadder-v3');
+  const last = await guest('catalog', '/products?page=5'); assert.equal(last.data.items.at(-1).slug, 'razer-deathadder-v3');
   product = (await guest('catalog', '/products/amd-ryzen-5-7600')).data;
 });
 test('registration validation, secure cookie, login and protected endpoints', async () => {

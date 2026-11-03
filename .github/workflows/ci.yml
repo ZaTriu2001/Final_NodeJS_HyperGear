@@ -30,6 +30,13 @@ jobs:
         run: docker compose up -d --build --wait --wait-timeout 180
       - name: Verify checkout and SMTP emails
         run: node scripts/smoke.mjs
+      - name: Verify admin, realtime, Elasticsearch and PC Builder
+        run: npm run test:m3-m4
+        env:
+          REDIS_URL: redis://127.0.0.1:6379
+          ELASTICSEARCH_URL: http://127.0.0.1:9200
+      - name: Verify Nginx balances gateways and sessions remain valid
+        run: node scripts/scaling-smoke.mjs
       - name: Install Chromium for browser QA
         run: npx playwright install --with-deps chromium --only-shell
       - name: Verify desktop and mobile browser flows
