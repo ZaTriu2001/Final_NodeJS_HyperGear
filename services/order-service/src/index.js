@@ -150,10 +150,11 @@ app.get('/loyalty', auth, async (request, response) => {
 });
 app.patch('/admin/:id/status', auth, admin, async (request, response) => {
   const id = objectId(request.params.id); const statuses = ['pending', 'confirmed', 'shipping', 'delivered'];
+  if (!statuses.includes(request.body.status)) fail(400, 'Trạng thái đơn không hợp lệ.');
   let order;
   await mongoose.connection.transaction(async session => {
     order = await Order.findById(id).session(session); if (!order) fail(404, 'Không tìm thấy đơn.');
-    if (statuses[statuses.indexOf(order.status) + 1] !== request.body.status) fail(409, 'Chỉ được chuyển sang trạng thái kế tiếp.');
+    if (order.status === 'delivered' || statuses[statuses.indexOf(order.status) + 1] !== request.body.status) fail(409, 'Chỉ được chuyển sang trạng thái kế tiếp.');
     order.status = request.body.status; order.statusHistory.push({ status: order.status, at: new Date() }); await order.save({ session });
     if (order.status === 'confirmed') await Outbox.create([{ _id: randomUUID(), type: 'order.confirmed', payload: { email: order.email, fullName: order.fullName, orderId: order.id, totalPaid: order.totalPaid, lines: publicOrder(order).lines } }], { session });
   });

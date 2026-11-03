@@ -23,7 +23,8 @@
     "test:messaging": "node --test tests/messaging.test.mjs",
     "test:smoke": "node scripts/smoke.mjs",
     "test:browser": "playwright test",
-    "test:m3-m4": "node --test --test-concurrency=1 tests/m3-m4.test.mjs"
+    "test:m3-m4": "node --test --test-concurrency=1 tests/m3-m4.test.mjs",
+    "test:logic": "node --test --test-concurrency=1 tests/logic-regression.test.mjs"
   },
   "engines": {
     "node": ">=24 <25"
