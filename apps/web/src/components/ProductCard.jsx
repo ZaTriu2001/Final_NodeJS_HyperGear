@@ -1,9 +1,9 @@
 import { Link } from 'react-router-dom';
-import { formatVnd } from '../data/products';
-import { useCart } from '../state/CartContext';
+import { formatVnd } from '../lib/api';
+import { useCart } from '../state/contexts';
 
 export default function ProductCard({ product }) {
-  const { addItem } = useCart();
+  const { addItem, busy } = useCart();
   const available = product.variants.filter((variant) => variant.stock > 0);
   const defaultVariant = available[0] ?? product.variants[0];
   const fromPrice = Math.min(...product.variants.map((variant) => variant.price));
@@ -19,10 +19,11 @@ export default function ProductCard({ product }) {
       <div className="product-body">
         <div className="product-meta">{product.brand} • {product.category}</div>
         <Link className="product-name" to={`/san-pham/${product.slug}`}>{product.name}</Link>
+        <p className="product-summary">{product.shortDescription}</p>
         <div className="rating"><i className="bi bi-star-fill" /> {product.rating} <span>({product.sold} đã bán)</span></div>
         <div className="d-flex align-items-end justify-content-between gap-2 mt-auto">
           <div><small>Từ</small><div className="product-price">{formatVnd(fromPrice)}</div></div>
-          <button className="quick-add" disabled={outOfStock} onClick={() => addItem(product, defaultVariant)} aria-label={`Thêm ${product.name} vào giỏ`}>
+          <button className="quick-add" disabled={outOfStock || busy} onClick={() => addItem(product, defaultVariant)} aria-label={`Thêm ${product.name} vào giỏ`}>
             <i className="bi bi-plus-lg" />
           </button>
         </div>

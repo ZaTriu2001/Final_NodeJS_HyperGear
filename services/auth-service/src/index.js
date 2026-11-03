@@ -1,115 +1,129 @@
 import 'dotenv/config';
 import bcrypt from 'bcryptjs';
-import cors from 'cors';
-import express from 'express';
-import helmet from 'helmet';
-import jwt from 'jsonwebtoken';
+import { randomBytes, createHash, randomUUID, timingSafeEqual } from 'node:crypto';
 import mongoose from 'mongoose';
-
-const app = express();
-const port = Number(process.env.PORT ?? 3001);
-const jwtSecret = process.env.JWT_SECRET ?? 'development-only-secret';
-
-const addressSchema = new mongoose.Schema({
-  recipient: { type: String, required: true, trim: true },
-  phone: { type: String, required: true, trim: true },
-  street: { type: String, required: true, trim: true },
-  ward: { type: String, required: true, trim: true },
-  province: { type: String, required: true, trim: true },
-  note: { type: String, default: '', trim: true, maxlength: 300 },
-  isDefault: { type: Boolean, default: false },
-}, { _id: true });
-
-const userSchema = new mongoose.Schema({
-  fullName: { type: String, required: true, trim: true, minlength: 2, maxlength: 100 },
-  email: { type: String, required: true, unique: true, lowercase: true, trim: true },
-  phone: { type: String, required: true, trim: true },
-  passwordHash: { type: String, required: true, select: false },
-  role: { type: String, enum: ['customer', 'admin'], default: 'customer' },
-  status: { type: String, enum: ['active', 'blocked'], default: 'active' },
-  loyaltyPoints: { type: Number, default: 0, min: 0 },
-  addresses: {
-    type: [addressSchema],
-    validate: { validator: (items) => items.length <= 3, message: 'Mỗi tài khoản chỉ được lưu tối đa 3 địa chỉ.' },
-  },
-}, { timestamps: true });
-
-const User = mongoose.model('User', userSchema);
-const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,72}$/;
-
-app.disable('x-powered-by');
-app.use(helmet());
-app.use(cors({ origin: true, credentials: true }));
-app.use(express.json({ limit: '32kb' }));
-
-app.get('/healthz', (_request, response) => {
-  response.json({
-    service: 'auth-service',
-    status: mongoose.connection.readyState === 1 ? 'ok' : 'degraded',
-    database: mongoose.connection.readyState,
+import { OAuth2Client } from 'google-auth-library';
+import { User, Session, PasswordReset, Outbox, publicUser } from '@hypergear/core/models';
+import { appBase, auth, issueSession, clearSession, cookies, rateLimit, start, webOrigin } from '@hypergear/core/http';
+import { address, email, phone, password, text, objectId, fail } from '@hypergear/core/validation';
+const app = appBase('auth-service');
+const limited = rateLimit();
+const hash = value => createHash('sha256').update(value).digest('hex');
+const oauth = new OAuth2Client(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET, webOrigin + '/api/auth/google/callback');
+const googleEnabled = Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
+app.get('/config', (_request, response) => response.json({ googleEnabled }));
+app.post('/register', limited, async (request, response) => {
+  const body = request.body;
+  const normalizedEmail = email(body.email);
+  const fullName = text(body.fullName, 'Họ và tên', 2, 100);
+  const normalizedPhone = phone(body.phone);
+  const shippingAddress = address(body.shippingAddress);
+  const passwordHash = await bcrypt.hash(password(body.password, body.confirmPassword), 12);
+  const user = await User.create({ fullName, email: normalizedEmail, phone: normalizedPhone, passwordHash, addresses: [{ ...shippingAddress, isDefault: true }] });
+  await issueSession(user, response);
+  response.status(201).json({ user: publicUser(user) });
+});
+app.post('/login', limited, async (request, response) => {
+  const user = await User.findOne({ email: email(request.body.email) }).select('+passwordHash');
+  if (!user?.passwordHash || typeof request.body.password !== 'string' || !(await bcrypt.compare(request.body.password, user.passwordHash))) fail(401, 'Email hoặc mật khẩu không đúng.');
+  if (user.status !== 'active') fail(403, 'Tài khoản đã bị khóa.');
+  await issueSession(user, response); response.json({ user: publicUser(user) });
+});
+app.get('/me', auth, (request, response) => response.json({ user: publicUser(request.user) }));
+app.post('/logout', auth, async (request, response) => {
+  await Session.deleteOne({ _id: request.sessionId }); clearSession(response); response.json({ message: 'Đã đăng xuất.' });
+});
+app.patch('/me', auth, async (request, response) => {
+  request.user.fullName = text(request.body.fullName, 'Họ và tên', 2, 100);
+  request.user.phone = phone(request.body.phone);
+  await request.user.save(); response.json({ user: publicUser(request.user) });
+});
+app.post('/password', auth, limited, async (request, response) => {
+  const user = request.user;
+  if (user.passwordHash && (typeof request.body.currentPassword !== 'string' || !(await bcrypt.compare(request.body.currentPassword, user.passwordHash)))) fail(400, 'Mật khẩu hiện tại không đúng.');
+  if (!user.passwordHash) fail(400, 'Tài khoản Google: hãy dùng Khôi phục mật khẩu để thiết lập mật khẩu qua email.');
+  const passwordHash = await bcrypt.hash(password(request.body.password, request.body.confirmPassword), 12);
+  await mongoose.connection.transaction(async session => {
+    const changed = await User.updateOne({ _id: user._id, passwordHash: user.passwordHash }, { $set: { passwordHash } }, { session });
+    if (!changed.matchedCount) fail(409, 'Mật khẩu đã thay đổi ở phiên khác.');
+    await Session.deleteMany({ userId: user._id }, { session });
+    await PasswordReset.deleteMany({ userId: user._id }, { session });
   });
+  clearSession(response); response.json({ message: 'Đã đổi mật khẩu. Hãy đăng nhập lại trên các thiết bị.' });
 });
-
-app.post('/register', async (request, response, next) => {
-  try {
-    const { fullName, email, phone, password, confirmPassword, shippingAddress } = request.body;
-    if (!fullName || !email || !phone || !password || !confirmPassword || !shippingAddress) {
-      return response.status(400).json({ message: 'Vui lòng nhập đầy đủ thông tin đăng ký.' });
-    }
-    const requiredAddressFields = ['recipient', 'phone', 'street', 'ward', 'province'];
-    if (requiredAddressFields.some((field) => !shippingAddress[field]?.trim())) {
-      return response.status(400).json({ message: 'Địa chỉ cần người nhận, số điện thoại, đường, phường/xã và tỉnh/thành.' });
-    }
-    if (password !== confirmPassword) {
-      return response.status(400).json({ message: 'Mật khẩu xác nhận không khớp.' });
-    }
-    if (!passwordPattern.test(password)) {
-      return response.status(400).json({ message: 'Mật khẩu cần 8 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt.' });
-    }
-    const normalizedEmail = email.trim().toLowerCase();
-    if (await User.exists({ email: normalizedEmail })) {
-      return response.status(409).json({ message: 'Email đã được sử dụng.' });
-    }
-    const passwordHash = await bcrypt.hash(password, 12);
-    const user = await User.create({
-      fullName,
-      email: normalizedEmail,
-      phone,
-      passwordHash,
-      addresses: [{ ...shippingAddress, isDefault: true }],
+app.post('/forgot-password', rateLimit(5), async (request, response) => {
+  const user = await User.findOne({ email: email(request.body.email), status: 'active' });
+  if (user) {
+    const token = randomBytes(32).toString('hex');
+    await mongoose.connection.transaction(async session => {
+      await PasswordReset.deleteMany({ userId: user._id }, { session });
+      await PasswordReset.create([{ tokenHash: hash(token), userId: user._id, expiresAt: new Date(Date.now() + 900000) }], { session });
+      await Outbox.create([{ _id: randomUUID(), type: 'password.reset', payload: { email: user.email, fullName: user.fullName, resetUrl: webOrigin + '/khoi-phuc-mat-khau#' + token } }], { session });
     });
-    return response.status(201).json({ id: user.id, fullName: user.fullName, email: user.email });
-  } catch (error) {
-    return next(error);
   }
+  response.json({ message: 'Nếu email tồn tại, liên kết khôi phục sẽ được gửi và có hiệu lực 15 phút.' });
 });
-
-app.post('/login', async (request, response, next) => {
+app.post('/reset-password', limited, async (request, response) => {
+  const token = text(request.body.token, 'Token', 64, 64);
+  const passwordHash = await bcrypt.hash(password(request.body.password, request.body.confirmPassword), 12);
+  await mongoose.connection.transaction(async session => {
+    const reset = await PasswordReset.findOneAndDelete({ tokenHash: hash(token), expiresAt: { $gt: new Date() } }, { session });
+    if (!reset) fail(400, 'Liên kết đã hết hạn hoặc đã được sử dụng.');
+    const result = await User.updateOne({ _id: reset.userId, status: 'active' }, { $set: { passwordHash } }, { session });
+    if (!result.matchedCount) fail(400, 'Không thể khôi phục tài khoản này.');
+    await Session.deleteMany({ userId: reset.userId }, { session });
+    await PasswordReset.deleteMany({ userId: reset.userId }, { session });
+  });
+  clearSession(response); response.json({ message: 'Đã đặt mật khẩu mới. Bạn có thể đăng nhập.' });
+});
+app.post('/addresses', auth, async (request, response) => {
+  const user = request.user; if (user.addresses.length >= 3) fail(400, 'Chỉ được lưu tối đa 3 địa chỉ.');
+  const item = address(request.body); item.isDefault = item.isDefault || user.addresses.length === 0;
+  if (item.isDefault) user.addresses.forEach(value => { value.isDefault = false; });
+  user.addresses.push(item); await user.save(); response.status(201).json({ user: publicUser(user) });
+});
+app.patch('/addresses/:id', auth, async (request, response) => {
+  const user = request.user; const current = user.addresses.id(objectId(request.params.id));
+  if (!current) fail(404, 'Không tìm thấy địa chỉ.');
+  const updated = address(request.body);
+  updated.isDefault = updated.isDefault || current.isDefault;
+  if (updated.isDefault) user.addresses.forEach(value => { value.isDefault = false; });
+  Object.assign(current, updated); await user.save(); response.json({ user: publicUser(user) });
+});
+app.delete('/addresses/:id', auth, async (request, response) => {
+  const user = request.user; const current = user.addresses.id(objectId(request.params.id));
+  if (!current) fail(404, 'Không tìm thấy địa chỉ.');
+  user.addresses.pull(current._id);
+  if (user.addresses.length && !user.addresses.some(value => value.isDefault)) user.addresses[0].isDefault = true;
+  await user.save(); response.json({ user: publicUser(user) });
+});
+app.get('/google/start', rateLimit(30), async (_request, response) => {
+  if (!googleEnabled) return response.redirect(webOrigin + '/dang-nhap?error=google-unconfigured');
+  const state = randomBytes(32).toString('hex'); const nonce = randomBytes(32).toString('hex');
+  const { codeVerifier, codeChallenge } = await oauth.generateCodeVerifierAsync();
+  const bundle = Buffer.from(JSON.stringify({ state, nonce, codeVerifier })).toString('base64url');
+  response.cookie('hg_oauth', bundle, { httpOnly: true, sameSite: 'lax', secure: webOrigin.startsWith('https:'), maxAge: 600000, path: '/api/auth/google' });
+  response.redirect(oauth.generateAuthUrl({ scope: ['openid', 'email', 'profile'], state, nonce, code_challenge: codeChallenge, code_challenge_method: 'S256', prompt: 'select_account' }));
+});
+app.get('/google/callback', async (request, response) => {
   try {
-    const email = request.body.email?.trim().toLowerCase();
-    const user = email ? await User.findOne({ email }).select('+passwordHash') : null;
-    if (!user || !(await bcrypt.compare(request.body.password ?? '', user.passwordHash))) {
-      return response.status(401).json({ message: 'Email hoặc mật khẩu không đúng.' });
-    }
-    if (user.status !== 'active') return response.status(403).json({ message: 'Tài khoản đã bị khóa.' });
-    const token = jwt.sign({ sub: user.id, role: user.role }, jwtSecret, { expiresIn: '2h' });
-    return response.json({ token, user: { id: user.id, fullName: user.fullName, email: user.email, role: user.role } });
-  } catch (error) {
-    return next(error);
-  }
+    const saved = JSON.parse(Buffer.from(cookies(request).hg_oauth ?? '', 'base64url').toString());
+    response.clearCookie('hg_oauth', { path: '/api/auth/google' });
+    const state = String(request.query.state ?? '');
+    if (state.length !== saved.state.length || !timingSafeEqual(Buffer.from(state), Buffer.from(saved.state)) || !request.query.code) throw new Error('Invalid state');
+    const { tokens } = await oauth.getToken({ code: String(request.query.code), codeVerifier: saved.codeVerifier });
+    const ticket = await oauth.verifyIdToken({ idToken: tokens.id_token, audience: process.env.GOOGLE_CLIENT_ID });
+    const profile = ticket.getPayload();
+    if (!profile.email_verified || profile.nonce !== saved.nonce) throw new Error('Unverified identity');
+    const normalizedEmail = email(profile.email);
+    let user = await User.findOne({ email: normalizedEmail }).select('+passwordHash +googleId');
+    // Only Gmail / managed Workspace email can automatically link an existing account.
+    if (user && !user.googleId && !normalizedEmail.endsWith('@gmail.com') && !profile.hd) return response.redirect(webOrigin + '/dang-nhap?error=google-link-required');
+    if (user?.googleId && user.googleId !== profile.sub) throw new Error('Identity mismatch');
+    if (!user) user = new User({ email: normalizedEmail, fullName: profile.name || normalizedEmail.split('@')[0], phone: '', addresses: [] });
+    if (user.status !== 'active') throw new Error('Blocked account');
+    user.googleId = profile.sub; await user.save(); await issueSession(user, response);
+    response.redirect(webOrigin + '/tai-khoan');
+  } catch { response.redirect(webOrigin + '/dang-nhap?error=google-failed'); }
 });
-
-app.use((error, _request, response, _next) => {
-  console.error(error);
-  response.status(500).json({ message: 'Auth service encountered an unexpected error.' });
-});
-
-async function start() {
-  await mongoose.connect(process.env.MONGODB_URI ?? 'mongodb://127.0.0.1:27017/hypergear');
-  app.listen(port, () => console.log(`[auth-service] listening on port ${port}`));
-}
-
-start().catch((error) => {
-  console.error('[auth-service] failed to start', error);
-  process.exit(1);
-});
+start(app, Number(process.env.PORT ?? 3001)).catch(error => { console.error(error.message); process.exit(1); });

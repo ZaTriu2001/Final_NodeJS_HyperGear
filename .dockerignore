@@ -1,0 +1,11 @@
+node_modules
+.git
+.env
+.env.*
+!.env.example
+.local
+dist
+**/dist
+**/node_modules
+*.log
+erl_crash.dump

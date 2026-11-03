@@ -1,51 +1,37 @@
-# Kiến trúc HyperGear
+# Kiến trúc HyperGear (M1–M2)
 
-## Sơ đồ luồng chính
+Browser → Nginx :8080 → Gateway A/B → Auth / Catalog / Order.
+React static web dùng cùng origin /api. Cookie HttpOnly/SameSite=Lax; API ghi yêu cầu header X-HyperGear-Client và kiểm tra Origin. JWT có session ID; MongoDB lưu phiên và trạng thái user, nên logout/ban/password reset có hiệu lực cả khi qua gateway khác.
 
-```text
-Browser
-  |
-  v
-Nginx :8080
-  |-- /             -> React static web
-  |-- /api/*        -> API Gateway A / API Gateway B (least_conn)
-                           |-- Auth Service --------> MongoDB
-                           |-- Catalog Service -----> MongoDB + Elasticsearch
-                           |-- Order Service -------> MongoDB -> RabbitMQ
-                           |                              |
-                           |                              v
-                           |                       Notification Service
-                           |-- AI Service ----------> Elasticsearch + Gemini API
+## Ranh giới service
 
-Redis: cache, rate-limit state và Socket.IO adapter khi realtime được triển khai.
-```
+- Auth sở hữu account, addresses, session, Google callback, reset. Chỉ update field whitelist.
+- Catalog cung cấp API sản phẩm public, search/filter/sort/pagination và ẩn costPrice.
+- Order sở hữu cart/order/loyalty ledger; lấy giá và tồn từ MongoDB, không tin giá client.
+- Notification chạy outbox relay và RabbitMQ consumer; SMTP worker xử lý riêng khỏi request checkout.
+- Gateway stateless; Nginx least_conn tới hai gateway.
+- packages/core chứa schema và validation dùng chung. Đây là microservices chạy tách process/container nhưng có **shared MongoDB/schema**, chưa phải database-per-service. Order transaction cập nhật User/Product/Cart/Order/Ledger/Outbox chung một replica set. Đây là lựa chọn để đảm bảo tính nguyên tử cho đồ án; chuyển database-per-service sau này cần reservation/saga và không thể giữ nguyên transaction này.
 
-## Trách nhiệm từng service
+## Luồng thanh toán
 
-| Thành phần | Trách nhiệm | Trạng thái giai đoạn 1 |
-|---|---|---|
-| Web | Giao diện khách hàng/admin | Có bản preview và dữ liệu mẫu |
-| API Gateway | Một cổng `/api`, proxy stateless | Đã có health check và route proxy |
-| Auth Service | Đăng ký, đăng nhập, JWT, OAuth, profile | Đã có đăng ký/đăng nhập cơ bản; OAuth/profile ở giai đoạn 2 |
-| Catalog Service | Product, variant, search/filter/sort | Đã có model và API đọc MongoDB |
-| Order Service | Checkout, tồn kho, loyalty, order, dashboard | Đã có model tài chính, test và metrics; transaction checkout ở giai đoạn 2 |
-| Notification Service | Nhận sự kiện RabbitMQ, gửi email | Đã có consumer; SMTP ở giai đoạn 2 |
-| AI Service | RAG PC Builder | Đã có endpoint contract; retrieval/Gemini ở giai đoạn 2 |
+1. Khách chọn địa chỉ, lượng điểm; server đọc account cart + giá/tồn mới nhất.
+2. Quote trả snapshot public, phí ship và quoteHash để khách xem lại.
+3. UI tạo Idempotency-Key và tái sử dụng khóa đó khi retry lỗi mạng.
+4. Server xác thực user/address/points, so sánh quoteHash và mở MongoDB transaction.
+5. Update tồn với điều kiện stock >= quantity, cập nhật balance, tạo order/snapshot/ledger/outbox, xóa cart.
+6. Commit thành công mới trả order; transaction conflict tự retry. Duplicate key trả lại đúng order đã có.
+7. Relay publish event persistent vào RabbitMQ bằng confirm channel, rồi đánh dấu outbox published.
+8. Consumer gửi SMTP, ghi EmailDelivery sent và ACK. Retry queue TTL 5 giây, tối đa 5 lần rồi dead-letter.
 
-## Nguyên tắc horizontal scaling
+Không tuyên bố exactly-once cho SMTP: nếu process chết sau SMTP đã nhận nhưng trước khi ghi sent, email có thể được gửi lại. Message-ID ổn định và delivery ledger chống phát lại thông thường, không tạo ra đảm bảo mà SMTP không cung cấp.
 
-- Gateway không lưu session trong bộ nhớ; xác thực dùng JWT.
-- Hai gateway chạy sau Nginx `least_conn`.
-- File ảnh dùng URL/object storage, không ghi lên ổ đĩa của container.
-- Dữ liệu lâu dài nằm trong MongoDB; cache/realtime state nằm ở Redis.
-- Sự kiện order gửi qua RabbitMQ để Order Service không phụ thuộc trực tiếp vào email.
+## Hạ tầng
 
-## Quy tắc AI PC Builder
+MongoDB replica set 1 node dùng volume; RabbitMQ/mailpit có volume. Docker host chỉ publish loopback. Demo native có dữ liệu riêng trong .local/mongo, không dùng chung volume Docker.
 
-RAG không được tự quyết tính tương thích phần cứng. Luồng đúng là:
+Dữ liệu seed chỉ insert nếu chưa tồn tại. Khi nâng schema, dùng migration riêng; không chạy seed để reset hàng hoặc mật khẩu của người đã dùng.
 
-1. Elasticsearch lấy sản phẩm theo nhu cầu và ngân sách.
-2. Rule engine kiểm tra socket CPU/mainboard, chuẩn RAM, công suất PSU, kích thước case/GPU và tổng chi phí.
-3. Chỉ các cấu hình hợp lệ mới đưa cho Gemini để giải thích bằng tiếng Việt.
-4. Mọi sản phẩm/giá/tồn kho trong câu trả lời phải trích từ catalog hiện tại.
+## Phạm vi chưa nghiệm thu
+
+Google OAuth cần credentials/consent/test user của nhóm. Redis cache/Socket.IO, ES indexing/search, Gemini/RAG và nhiều replica nghiệp vụ thuộc M3–M4. Hai gateway không thay thế bằng chứng scale đầy đủ của cả hệ thống.
 

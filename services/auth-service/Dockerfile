@@ -1,10 +1,6 @@
 FROM node:24-alpine
 WORKDIR /app
-COPY package*.json ./
-COPY services/auth-service/package.json ./services/auth-service/package.json
-RUN npm install --workspace @hypergear/auth-service --include-workspace-root
-COPY services/auth-service ./services/auth-service
-WORKDIR /app/services/auth-service
-EXPOSE 3001
+COPY . .
+RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund
 USER node
-CMD ["npm", "start"]
+CMD ["node", "services/auth-service/src/index.js"]

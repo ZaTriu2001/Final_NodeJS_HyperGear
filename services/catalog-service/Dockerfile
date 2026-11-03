@@ -1,10 +1,6 @@
 FROM node:24-alpine
 WORKDIR /app
-COPY package*.json ./
-COPY services/catalog-service/package.json ./services/catalog-service/package.json
-RUN npm install --workspace @hypergear/catalog-service --include-workspace-root
-COPY services/catalog-service ./services/catalog-service
-WORKDIR /app/services/catalog-service
-EXPOSE 3002
+COPY . .
+RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund
 USER node
-CMD ["npm", "start"]
+CMD ["node", "services/catalog-service/src/index.js"]

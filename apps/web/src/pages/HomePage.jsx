@@ -1,8 +1,13 @@
 import { Link } from 'react-router-dom';
 import ProductCard from '../components/ProductCard';
-import { categories, products } from '../data/products';
+import { useState } from 'react';
+import { useResource } from '../lib/useResource';
+import Pagination from '../components/Pagination';
+import Feedback from '../components/Feedback';
 
-function ProductSection({ title, eyebrow, items, link = '/san-pham' }) {
+function ProductSection({ title, eyebrow, query = '', link = '/san-pham' }) {
+  const [page, setPage] = useState(1);
+  const { data, loading, error } = useResource('/catalog/products?limit=4&page=' + page + '&' + query);
   return (
     <section className="section-space">
       <div className="container">
@@ -11,9 +16,10 @@ function ProductSection({ title, eyebrow, items, link = '/san-pham' }) {
           <Link to={link}>Xem tất cả <i className="bi bi-arrow-right" /></Link>
         </div>
         <div className="row g-3 g-xl-4">
-          {items.slice(0, 4).map((product) => (
+          <Feedback loading={loading} error={error}>{data?.items.map((product) => (
             <div className="col-6 col-lg-3" key={product.id}><ProductCard product={product} /></div>
-          ))}
+          ))}</Feedback>
+          {data && <Pagination page={page} totalPages={data.totalPages} onChange={setPage} label={'Phân trang ' + title} />}
         </div>
       </div>
     </section>
@@ -21,7 +27,8 @@ function ProductSection({ title, eyebrow, items, link = '/san-pham' }) {
 }
 
 export default function HomePage() {
-  const bestSellers = [...products].sort((a, b) => b.sold - a.sold);
+  const { data: facets } = useResource('/catalog/facets');
+  const categories = facets?.categories ?? [];
   return (
     <>
       <section className="hero-section">
@@ -37,9 +44,9 @@ export default function HomePage() {
                 <a className="btn btn-ghost" href="#build-pc">Tư vấn Build PC</a>
               </div>
               <div className="hero-stats">
-                <div><strong>{products.length}+</strong><span>Sản phẩm preview</span></div>
-                <div><strong>7</strong><span>Danh mục</span></div>
-                <div><strong>4.9/5</strong><span>Đánh giá</span></div>
+                <div><strong>{facets?.total ?? '…'}</strong><span>Sản phẩm</span></div>
+                <div><strong>{categories.length || '…'}</strong><span>Danh mục</span></div>
+                <div><strong>24/7</strong><span>Đặt hàng trực tuyến</span></div>
               </div>
             </div>
             <div className="col-lg-5 d-none d-lg-block">
@@ -67,7 +74,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <ProductSection title="Sản phẩm mới" eyebrow="VỪA CẬP BẾN" items={products.filter((product) => product.isNew)} />
+      <ProductSection title="Sản phẩm mới" eyebrow="VỪA CẬP BẾN" query="sort=newest" />
 
       <section className="build-banner" id="build-pc">
         <div className="container">
@@ -76,17 +83,18 @@ export default function HomePage() {
               <span className="hero-kicker">HYPERGEAR AI BUILDER</span>
               <h2>Build PC đúng nhu cầu,<br />không lãng phí ngân sách.</h2>
               <p>Trợ lý AI sẽ phân tích mục đích sử dụng, ngân sách và độ tương thích để đề xuất cấu hình phù hợp từ sản phẩm tại HyperGear.</p>
-              <button className="btn btn-light" disabled><i className="bi bi-stars me-2" />Sắp ra mắt trong giai đoạn 2</button>
+              <button className="btn btn-light" disabled><i className="bi bi-stars me-2" />Sắp ra mắt</button>
             </div>
             <div className="col-lg-5"><div className="ai-orbit"><i className="bi bi-cpu-fill" /><span /><span /><span /></div></div>
           </div>
         </div>
       </section>
 
-      <ProductSection title="Bán chạy nhất" eyebrow="LỰA CHỌN CỦA CỘNG ĐỒNG" items={bestSellers} />
-      <ProductSection title="Laptop hiệu năng cao" eyebrow="LÀM VIỆC & CHIẾN GAME" items={products.filter((product) => product.category === 'Laptop')} link="/san-pham?category=Laptop" />
-      <ProductSection title="Linh kiện nâng cấp" eyebrow="KHAI PHÁ SỨC MẠNH" items={products.filter((product) => ['CPU', 'GPU'].includes(product.category))} link="/san-pham?category=GPU" />
+      <ProductSection title="Bán chạy nhất" eyebrow="LỰA CHỌN CỦA CỘNG ĐỒNG" query="sort=bestselling" />
+      <ProductSection title="Laptop hiệu năng cao" eyebrow="LÀM VIỆC & CHIẾN GAME" query="category=Laptop" link="/san-pham?category=Laptop" />
+      <ProductSection title="Bộ vi xử lý CPU" eyebrow="KHAI PHÁ SỨC MẠNH" query="category=CPU" link="/san-pham?category=CPU" />
 
+      <ProductSection title="Màn hình" eyebrow="KHÔNG GIAN HIỂN THỊ" query={"category=" + encodeURIComponent("Màn hình")} link={"/san-pham?category=" + encodeURIComponent("Màn hình")} />
       <section className="service-band">
         <div className="container"><div className="row g-4">
           {[

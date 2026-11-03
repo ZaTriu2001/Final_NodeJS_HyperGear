@@ -11,6 +11,7 @@
   "dependencies": {
     "amqplib": "latest",
     "dotenv": "latest",
-    "nodemailer": "latest"
+    "nodemailer": "^10.3.1",
+    "@hypergear/core": "*"
   }
 }

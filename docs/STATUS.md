@@ -1,52 +1,44 @@
 # Trạng thái triển khai
 
-Cập nhật: 01/10/2026, múi giờ Asia/Ho_Chi_Minh.
+Cập nhật: 02/11/2026, Asia/Ho_Chi_Minh.
 
-## Đã hoàn thành ở giai đoạn 1
+## M1–M2 đã có code và test
 
-- Khởi tạo monorepo local và remote `ZaTriu2001/Final_NodeJS_HyperGear`.
-- React storefront preview: home, catalog, product detail, cart, login/register shell, admin dashboard preview.
-- 28 sản phẩm fixture thuộc 7 danh mục; mỗi sản phẩm có 2 variant, giá vốn, giá bán và tồn kho riêng.
-- Search, brand/category/price/rating filter, 4 sort mode, 12 item/page và page number luôn hiển thị.
-- Guest cart dùng localStorage, thay đổi số lượng/tổng tiền không reload.
-- API Gateway và 5 business/support services: Auth, Catalog, Order, Notification, AI.
-- Auth register/login cơ bản với bcrypt + JWT; MongoDB model cho user/địa chỉ.
-- Catalog model và API list/detail có filter/sort/pagination.
-- Order financial rules và metrics skeleton; unit test cho profit và loyalty points.
-- Docker Compose với MongoDB, Redis, RabbitMQ, Elasticsearch, Nginx và 2 gateway instance.
-- GitHub Actions, Postman collection và tài liệu kiến trúc/backlog/rubric.
+- M1: monorepo Node 24, React/Vite/Bootstrap, Mongo catalog 42 sản phẩm/7 danh mục, trang chủ/phân trang/filter/search/sort, detail/variant/giỏ khách, logo HyperGear.
+- M2: đăng ký/đăng nhập, profile, đổi/khôi phục mật khẩu, tối đa 3 địa chỉ, cart Mongo + merge guest, checkout nhiều bước, thanh toán mô phỏng, transaction tồn kho/loyalty, lịch sử/chi tiết đơn.
+- Email thật qua SMTP local: transactional outbox → RabbitMQ → Mailpit; receipt, confirmation, reset; retry/dead-letter/deduplication.
+- Admin tối thiểu có số liệu thật và chuyển trạng thái đơn để thử M2; chưa thay thế toàn bộ yêu cầu M3.
+- Google OAuth đã viết luồng PKCE/state/nonce/ID-token, chưa nghiệm thu đăng nhập thật vì thiếu cấu hình Google của nhóm.
+- Không coupon, không tax; doanh thu gốc, profit = revenue − loyaltyDiscount − costOfGoods. Đơn dùng điểm không được cộng điểm.
+- Git: nhánh feature/m1-m2-completion, PR #1; chưa merge main, chưa thay đổi attribution của thành viên.
 
-## Đã kiểm tra
+## Bằng chứng kiểm thử
 
-- Tất cả file JavaScript backend qua `node --check`.
-- Tất cả file JSX qua TypeScript parser.
-- 3/3 unit test business rule đạt.
-- `docker compose config --quiet` đạt.
-- `git diff --check` đạt.
+- Local: 11 test frontend, 3 test finance, 12 nhóm integration trên Mongo replica set, 1 test RabbitMQ/SMTP đều đạt; smoke mua hàng/email đạt.
+- Lint/build đạt. Có 11 test React dùng jsdom và 4 test browser Chromium (desktop/mobile) đạt trên CI; đây là hai bộ kiểm thử khác nhau.
+- GitHub Actions của commit 4570fba đạt toàn bộ lint/test/build/integration, Docker Compose, smoke, browser và messaging: [run 41485320087](https://github.com/ZaTriu2001/Final_NodeJS_HyperGear/actions/runs/41485320087). Xem thay đổi ở [PR #1](https://github.com/ZaTriu2001/Final_NodeJS_HyperGear/pull/1).
+- Đã thử trực tiếp trên giao diện: giỏ khách → đăng nhập → thất bại/thành công mô phỏng → đơn dùng loyalty → admin xác nhận → 2 email. Xem [báo cáo kiểm thử](M1-M2-TEST-REPORT.md).
+- Không dùng kết quả test làm cam kết được 100% điểm rubric.
 
-## Chưa thể kiểm tra trong môi trường hiện tại
+## Demo
 
-- `npm install` không tải được dependency từ npm registry, nên chưa sinh `package-lock.json` và chưa chạy Vite build/ESLint.
-- Sandbox không cho truy cập Docker daemon socket, nên chưa chạy `docker compose up -d` end-to-end.
+[Website localhost](http://localhost:8080) — [Hộp thư Mailpit](http://localhost:8025).
 
-Hai vấn đề trên không phải yêu cầu phê duyệt đang chờ. Người dùng có thể chạy các lệnh sau trong Terminal máy thật:
+Docker Desktop trên Mac chưa khởi động được khi desktop khóa. Có bản native dùng Node 24, MongoDB WiredTiger replica set, RabbitMQ, Mailpit; dữ liệu nằm trong .local/ và không vào Git.
 
-```bash
-cd "/Users/zatriu/Downloads/Learning/WebApp Development Using NodeJS/Final/Final_NodeJS_HyperGear"
-npm install
-npm run lint
-npm test
-npm run build
-docker compose up -d
-```
+~~~sh
+npm run demo:setup
+npm run demo:local -- --with-messaging
+~~~
 
-## Phần giai đoạn 2 còn lại
+Native cần RabbitMQ/Mailpit đã cài. Ctrl+C dừng tiến trình; mở lại giữ dữ liệu. Không chạy đồng thời native và Docker vì trùng cổng. Localhost chỉ mở trên laptop, không phải link public cho iPhone.
 
-- Nối form frontend vào Auth/Catalog API; Google OAuth, profile, change/recover password, address CRUD.
-- Cart MongoDB và merge guest cart.
-- Checkout nhiều bước, mô phỏng thanh toán, transaction tồn kho và order status history.
-- Loyalty persistence, email SMTP, order history/detail.
-- Comment/rating và Socket.IO + Redis adapter.
-- Admin CRUD thật và Chart.js dashboard thật.
-- Elasticsearch indexing/search, Gemini RAG + compatibility rule engine.
-- Seed 40-50 sản phẩm, demo accounts/orders, integration/E2E tests và hồ sơ nộp bài.
+## Phần còn lại
+
+1. Google OAuth: tạo web client/consent/test users, đặt ID/secret vào .env, kiểm thử thật.
+2. UI/responsive: đã có kiểm thử Chromium desktop/mobile trên CI và demo giao diện; còn Safari/iPhone thật và QA toàn bộ trang. Gallery hiện là SVG minh họa, chưa phải ảnh chính hãng từng model.
+3. M3: comment/rating, Socket.IO/Redis, admin CRUD/filter đầy đủ, dashboard nâng cao và kiểm chứng scaling.
+4. M4: Elasticsearch, Gemini/RAG/compatibility, QA/hồ sơ nộp/evidence/video.
+5. Review PR với thành viên còn lại; phân công trong BACKLOG là đề xuất, không phải bằng chứng đóng góp đã hoàn thành.
+
+Chi tiết: [M1-M2-HANDOFF.md](M1-M2-HANDOFF.md).
