@@ -1,0 +1,715 @@
+{
+  "info": {
+    "name": "HyperGear M3–M4",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Run on LOCAL demo only, in order. Admin credentials are seeded demo accounts. No Gemini key belongs here. Creates a temporary product/category/comment and soft-archives product. AI model depends server .env. Native Mongo search fallback is honest; full Docker verifies Elasticsearch."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080/api"
+    }
+  ],
+  "item": [
+    {
+      "name": "01 Login admin",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-HyperGear-Client",
+            "value": "web"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/auth/login",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"admin@gmail.com\",\n  \"password\": \"HyperGear@2026\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200',()=>pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 Admin customers",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-HyperGear-Client",
+            "value": "web"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/auth/admin/users?page=1"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200',()=>pm.response.to.have.status(200));",
+              "pm.test('Pagination',()=>pm.expect(pm.response.json().items.length).to.be.at.most(20));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 Admin products",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-HyperGear-Client",
+            "value": "web"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/catalog/admin/products"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200',()=>pm.response.to.have.status(200));",
+              "const p=pm.response.json().items[0]; pm.collectionVariables.set('productId',p._id); const body=JSON.parse(JSON.stringify(p));delete body._id;body.slug='postman-m3-'+Date.now();body.name='Postman Temporary Demo';body.variants.forEach((v,i)=>v.sku=body.slug+'-'+i);pm.collectionVariables.set('newProductBody',JSON.stringify(body));pm.collectionVariables.set('newSlug',body.slug);pm.collectionVariables.set('newCategory','Postman QA '+Date.now());"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 Create product",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-HyperGear-Client",
+            "value": "web"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/catalog/admin/products",
+        "body": {
+          "mode": "raw",
+          "raw": "{{newProductBody}}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 201',()=>pm.response.to.have.status(201));",
+              "pm.collectionVariables.set('createdProductId',pm.response.json()._id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 Edit product",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "X-HyperGear-Client",
+            "value": "web"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/catalog/admin/products/{{createdProductId}}",
+        "body": {
+          "mode": "raw",
+          "raw": "{{newProductBody}}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200',()=>pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 Archive product",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "X-HyperGear-Client",
+            "value": "web"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/catalog/admin/products/{{createdProductId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200',()=>pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 Archived unavailable publicly",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-HyperGear-Client",
+            "value": "web"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/catalog/products/{{newSlug}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 404',()=>pm.response.to.have.status(404));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 Create category",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-HyperGear-Client",
+            "value": "web"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/catalog/admin/categories",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"name\":\"{{newCategory}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 201',()=>pm.response.to.have.status(201));",
+              "pm.collectionVariables.set('categoryId',pm.response.json()._id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "09 Rename category",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "X-HyperGear-Client",
+            "value": "web"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/catalog/admin/categories/{{categoryId}}",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"name\":\"{{newCategory}} renamed\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200',()=>pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10 Deactivate empty category",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "X-HyperGear-Client",
+            "value": "web"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/catalog/admin/categories/{{categoryId}}",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"active\": false\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200',()=>pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "11 Admin orders paged",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-HyperGear-Client",
+            "value": "web"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/orders/admin/list?page=1"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200',()=>pm.response.to.have.status(200));",
+              "pm.test('20/page',()=>pm.expect(pm.response.json().items.length).to.be.at.most(20));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "12 Dashboard by quarter",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-HyperGear-Client",
+            "value": "web"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/orders/admin/metrics?range=year&unit=quarter"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200',()=>pm.response.to.have.status(200));",
+              "pm.test('Financial metrics',()=>{const b=pm.response.json();pm.expect(b).to.have.property('profit');pm.expect(b).to.have.property('revenue');pm.expect(b.series).to.be.an('array');});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "13 Add review",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-HyperGear-Client",
+            "value": "web"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/catalog/products/{{productId}}/comments",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"content\": \"Bình luận thử Postman M3–M4.\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 201',()=>pm.response.to.have.status(201));",
+              "pm.collectionVariables.set('commentId',pm.response.json().id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "14 Update own review",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "X-HyperGear-Client",
+            "value": "web"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/catalog/products/{{productId}}/comments/{{commentId}}",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"content\": \"Bình luận đã được cập nhật qua Postman.\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200',()=>pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "15 Delete own review",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "X-HyperGear-Client",
+            "value": "web"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/catalog/products/{{productId}}/comments/{{commentId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200',()=>pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "16 Reviews public safe",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-HyperGear-Client",
+            "value": "web"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/catalog/products/{{productId}}/reviews"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200',()=>pm.response.to.have.status(200));",
+              "pm.test('No ownership secrets',()=>pm.expect(JSON.stringify(pm.response.json())).not.to.include('guestOwnerHash'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "17 Keyword search provider",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-HyperGear-Client",
+            "value": "web"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/catalog/products?q=man%20hinh"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200',()=>pm.response.to.have.status(200));",
+              "pm.test('Search provider reported',()=>pm.expect(pm.response.json().searchProvider).to.be.oneOf(['elasticsearch','mongodb','mongodb-fallback']));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "18 AI config without secret",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-HyperGear-Client",
+            "value": "web"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/ai/config"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200',()=>pm.response.to.have.status(200));",
+              "pm.test('No API key',()=>pm.expect(JSON.stringify(pm.response.json())).not.to.include('GEMINI_API_KEY'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "19 PC Builder within budget",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-HyperGear-Client",
+            "value": "web"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/ai/pc-builder",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"budget\": 25000000,\n  \"purpose\": \"gaming\",\n  \"message\": \"Giải thích ngắn lựa chọn CPU và GPU.\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200',()=>pm.response.to.have.status(200));",
+              "pm.test('Compatible build within budget',()=>{const b=pm.response.json();pm.expect(b.available).to.eql(true);pm.expect(b.total).to.be.at.most(25000000);pm.expect(b.parts.length).to.eql(8);});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "20 Impossible budget honest",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-HyperGear-Client",
+            "value": "web"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/ai/pc-builder",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"budget\": 1000000,\n  \"purpose\": \"gaming\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200',()=>pm.response.to.have.status(200));",
+              "pm.test('Not fabricated',()=>pm.expect(pm.response.json().available).to.eql(false));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "21 Catalog grounded chat",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-HyperGear-Client",
+            "value": "web"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/ai/chat",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"message\": \"RAM có chức năng gì?\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200',()=>pm.response.to.have.status(200));",
+              "pm.test('Sources and provider',()=>{const b=pm.response.json();pm.expect(b.sources.length).to.be.above(0);pm.expect(b.answer.provider).to.be.oneOf(['gemini','rules']);});"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

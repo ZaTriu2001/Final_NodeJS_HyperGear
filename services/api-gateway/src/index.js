@@ -6,6 +6,7 @@ import { createProxyMiddleware } from 'http-proxy-middleware';
 const app = express();
 const port = Number(process.env.PORT ?? 3000);
 const instance = process.env.INSTANCE_NAME ?? 'gateway-local';
+const socketProxy = createProxyMiddleware({ target: process.env.CATALOG_SERVICE_URL ?? 'http://localhost:3002', changeOrigin: true, ws: true });
 
 app.disable('x-powered-by');
 app.use(helmet());
@@ -30,6 +31,7 @@ services.forEach(([route, target]) => {
 
 app.use((_request, response) => response.status(404).json({ message: 'API route not found' }));
 
-app.listen(port, process.env.HOST ?? '0.0.0.0', () => {
+const server = app.listen(port, process.env.HOST ?? '0.0.0.0', () => {
   console.log(`[${instance}] listening on port ${port}`);
 });
+server.on('upgrade', socketProxy.upgrade);

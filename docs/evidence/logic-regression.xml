@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<testsuites>
+	<testcase name="L01 delivered order rejects omitted/unknown status without corrupting history" time="6.220042" classname="test" file="/Users/zatriu/Downloads/Learning/WebApp Development Using NodeJS/Final/Final_NodeJS_HyperGear/tests/logic-regression.test.mjs"/>
+	<testcase name="L02 idempotency key cannot be reused for a different request" time="0.009523" classname="test" file="/Users/zatriu/Downloads/Learning/WebApp Development Using NodeJS/Final/Final_NodeJS_HyperGear/tests/logic-regression.test.mjs"/>
+	<testcase name="L03 historical order prices, names and profit are immutable after catalog edits" time="0.017618" classname="test" file="/Users/zatriu/Downloads/Learning/WebApp Development Using NodeJS/Final/Final_NodeJS_HyperGear/tests/logic-regression.test.mjs"/>
+	<testcase name="L04 negative/fractional loyalty points and missing shipping address are rejected" time="0.018630" classname="test" file="/Users/zatriu/Downloads/Learning/WebApp Development Using NodeJS/Final/Final_NodeJS_HyperGear/tests/logic-regression.test.mjs"/>
+	<testcase name="L05 compatibility fails closed when numeric specifications are missing" time="0.000610" classname="test" file="/Users/zatriu/Downloads/Learning/WebApp Development Using NodeJS/Final/Final_NodeJS_HyperGear/tests/logic-regression.test.mjs"/>
+	<testcase name="L06 PC Builder does not pick out-of-stock parts or exceed exact budget" time="0.008262" classname="test" file="/Users/zatriu/Downloads/Learning/WebApp Development Using NodeJS/Final/Final_NodeJS_HyperGear/tests/logic-regression.test.mjs"/>
+	<testcase name="L07 GPU is mandatory when the chosen CPU has no integrated graphics" time="0.000300" classname="test" file="/Users/zatriu/Downloads/Learning/WebApp Development Using NodeJS/Final/Final_NodeJS_HyperGear/tests/logic-regression.test.mjs"/>
+	<testcase name="L08 failed category rename rolls back product category changes" time="0.039279" classname="test" file="/Users/zatriu/Downloads/Learning/WebApp Development Using NodeJS/Final/Final_NodeJS_HyperGear/tests/logic-regression.test.mjs"/>
+	<testcase name="L09 two concurrent admin confirmations emit one confirmation event" time="0.028080" classname="test" file="/Users/zatriu/Downloads/Learning/WebApp Development Using NodeJS/Final/Final_NodeJS_HyperGear/tests/logic-regression.test.mjs"/>
+	<testcase name="L10 a comment cannot be modified through a different product route" time="0.038210" classname="test" file="/Users/zatriu/Downloads/Learning/WebApp Development Using NodeJS/Final/Final_NodeJS_HyperGear/tests/logic-regression.test.mjs"/>
+	<testcase name="L11 all four required sort orders are applied by the API" time="0.027846" classname="test" file="/Users/zatriu/Downloads/Learning/WebApp Development Using NodeJS/Final/Final_NodeJS_HyperGear/tests/logic-regression.test.mjs"/>
+	<testcase name="L12 document approved rules that differ from PDF, rather than silently claiming compliance" time="0.011378" classname="test" file="/Users/zatriu/Downloads/Learning/WebApp Development Using NodeJS/Final/Final_NodeJS_HyperGear/tests/logic-regression.test.mjs"/>
+	<testcase name="L13 shipping fees use current agreed city/province rules" time="0.000262" classname="test" file="/Users/zatriu/Downloads/Learning/WebApp Development Using NodeJS/Final/Final_NodeJS_HyperGear/tests/logic-regression.test.mjs"/>
+	<!-- tests 13 -->
+	<!-- suites 0 -->
+	<!-- pass 13 -->
+	<!-- fail 0 -->
+	<!-- cancelled 0 -->
+	<!-- skipped 0 -->
+	<!-- todo 0 -->
+	<!-- duration_ms 7079.930584 -->
+</testsuites>

@@ -4,6 +4,7 @@ import { formatVnd } from '../lib/api';
 import { useResource } from '../lib/useResource';
 import Feedback from '../components/Feedback';
 import { useCart } from '../state/contexts';
+import Reviews from '../components/Reviews';
 
 export default function ProductPage() {
   const { slug } = useParams();
@@ -13,6 +14,7 @@ export default function ProductPage() {
     ?? '';
   const [selectedSku, setSelectedSku] = useState(defaultSku);
   const [activeImage, setActiveImage] = useState(0);
+  const [liveRating, setLiveRating] = useState(null);
   const { addItem, busy } = useCart();
 
   if (loading || error) return <div className="container py-5"><Feedback loading={loading} error={error} /></div>;
@@ -24,13 +26,13 @@ export default function ProductPage() {
       <div className="container py-4"><div className="breadcrumb-line"><Link to="/">Trang chủ</Link><i className="bi bi-chevron-right" /><Link to="/san-pham">Sản phẩm</Link><i className="bi bi-chevron-right" /><span>{product.name}</span></div></div>
       <div className="container pb-5"><div className="row g-5">
         <div className="col-lg-6">
-          <div className="detail-image"><img src={activeImage === -1 ? variant.image : product.images[activeImage]} alt={`${product.name} - ảnh ${activeImage + 1}`} /></div>
+          <div className="detail-image"><img src={activeImage === -1 ? variant.image : product.images[activeImage]} alt={`${product.name} - ảnh ${activeImage < 0 ? "phiên bản" : activeImage + 1}`} /></div>
           <div className="thumb-row">{product.images.map((image, index) => <button key={`${image}-${index}`} className={activeImage === index ? 'active' : ''} onClick={() => setActiveImage(index)}><img src={image} alt={`Ảnh minh họa ${index + 1}`} /></button>)}</div>
         </div>
         <div className="col-lg-6">
           <span className="detail-category">{product.brand} • {product.category}</span>
           <h1 className="detail-title">{product.name}</h1>
-          <div className="rating detail-rating"><i className="bi bi-star-fill" /> {product.rating} <span>• {product.sold} đã bán • SKU {variant.sku}</span></div>
+          <div className="rating detail-rating"><i className="bi bi-star-fill" /> {liveRating?.productId === product.id ? liveRating.rating : product.rating} <span>• {product.sold} đã bán • SKU {variant.sku}</span></div>
           <div className="detail-price">{formatVnd(variant.price)}</div>
           <p className="detail-lead">{product.shortDescription}</p>
           <h2 className="option-title">Chọn phiên bản</h2>
@@ -39,7 +41,8 @@ export default function ProductPage() {
           <div className="stock-note"><i className="bi bi-check-circle-fill" /> Tồn kho được quản lý độc lập theo từng phiên bản.</div>
         </div>
       </div></div>
-      <section className="product-description"><div className="container"><div className="row g-5"><div className="col-lg-7"><span className="section-label">CHI TIẾT SẢN PHẨM</span><h2>Hiệu năng được lựa chọn kỹ.</h2>{product.description.map((line) => <p key={line}>{line}</p>)}</div><div className="col-lg-5"><div className="review-preview"><div className="review-score"><strong>{product.rating}</strong><span><i className="bi bi-star-fill" /> trên 5</span></div><h3>Đánh giá sản phẩm</h3><p>Đăng nhập để đánh giá sao. Chức năng bình luận và đánh giá sẽ sớm được mở.</p><button className="btn btn-outline-dark" disabled>Viết đánh giá</button></div></div></div></div></section>
+      <section className="product-description"><div className="container"><div className="row g-5"><div className="col-lg-7"><span className="section-label">CHI TIẾT SẢN PHẨM</span><h2>Hiệu năng được lựa chọn kỹ.</h2>{product.description.map((line) => <p key={line}>{line}</p>)}</div><div className="col-lg-5"><div className="account-card"><h3 className="h4">Chọn đúng phiên bản</h3><p>Mỗi SKU có giá, tồn kho và hình ảnh riêng. Xem bình luận bên dưới hoặc hỏi trợ lý để hiểu rõ vai trò linh kiện.</p><Link className="btn btn-outline-dark" to="/build-pc">Tư vấn Build PC</Link></div></div></div></div></section>
+      <div className="container pb-5"><Reviews key={product.id} productId={product.id} onRating={setLiveRating}/></div>
     </div>
   );
 }

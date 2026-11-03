@@ -1,0 +1,17 @@
+import { useState } from 'react';
+import { useResource } from '../lib/useResource';
+import { api, formatVnd, dateTime } from '../lib/api';
+import Pagination from './Pagination';
+import Feedback from './Feedback';
+import { PeriodFilter } from './AdminDashboard';
+const labels={pending:'Chờ xác nhận',confirmed:'Đã xác nhận',shipping:'Đang giao',delivered:'Đã giao'};
+const next={pending:'confirmed',confirmed:'shipping',shipping:'delivered'};
+export default function AdminOrders(){
+  const [page,setPage]=useState(1),[query,setQuery]=useState(''),[selected,setSelected]=useState('');const r=useResource('/orders/admin/list?page='+page+'&'+query);
+  return <><h2>Quản lý đơn hàng</h2><p>20 đơn/trang, mới nhất trước.</p><PeriodFilter onChange={q=>{setQuery(q);setPage(1);}}/><Feedback loading={r.loading} error={r.error}><div className="account-card table-responsive"><table className="table align-middle"><thead><tr><th>Đơn / Khách hàng</th><th>Ngày mua</th><th>Tổng tiền</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody>{r.data?.items.map(o=><tr key={o.id}><td>{o.id.slice(-8).toUpperCase()}<small className="d-block">{o.fullName} · {o.email}</small></td><td>{dateTime(o.createdAt)}</td><td>{formatVnd(o.totalPaid)}</td><td>{labels[o.status]}</td><td><button className="btn btn-sm btn-outline-dark" onClick={()=>setSelected(o.id)}>Xem chi tiết</button></td></tr>)}</tbody></table>{r.data?.total===0&&<p>Không có đơn trong khoảng này.</p>}</div></Feedback><Pagination page={page} totalPages={r.data?.totalPages??1} onChange={setPage}/>{selected&&<OrderDetail key={selected} id={selected} close={()=>setSelected('')} changed={r.reload}/>}</>;
+}
+function OrderDetail({id,close,changed}){
+  const r=useResource('/orders/admin/detail/'+id);const [busy,setBusy]=useState(false),[error,setError]=useState('');const o=r.data;
+  async function advance(){setBusy(true);setError('');try{await api('/orders/admin/'+id+'/status',{method:'PATCH',body:{status:next[o.status]}});r.reload();changed();}catch(e){setError(e.message);}finally{setBusy(false);}}
+  return <section className="account-card mt-4"><div className="d-flex justify-content-between gap-3"><h3>Chi tiết đơn</h3><button className="btn btn-outline-dark" onClick={close}>Đóng</button></div><Feedback loading={r.loading} error={r.error}>{o&&<><p>Mã đơn: <strong>{o.id}</strong> · {dateTime(o.createdAt)}</p><p>{o.fullName} · {o.email}<br/>{o.shippingAddress.recipient} · {o.shippingAddress.phone}<br/>{o.shippingAddress.street}, {o.shippingAddress.ward}, {o.shippingAddress.province}</p>{o.lines.map(l=><div className="border-top py-2" key={l.sku}>{l.productName} · {l.variantName} · {l.sku} × {l.quantity}<strong className="d-block">{formatVnd(l.unitPrice*l.quantity)}</strong></div>)}<dl className="order-totals">{[['Revenue',o.revenue],['Loyalty discount',o.loyaltyDiscount],['Giá vốn',o.costOfGoods],['Profit',o.profit],['Phí giao hàng',o.shippingFee],['Khách thanh toán',o.totalPaid]].map(([k,v])=><div className="d-contents" key={k}><dt>{k}</dt><dd>{formatVnd(v)}</dd></div>)}</dl><h4 className="h5">Lịch sử trạng thái</h4><ul>{[...o.statusHistory].reverse().map(h=><li key={h._id??h.status}>{labels[h.status]} · {dateTime(h.at)}</li>)}</ul>{next[o.status]&&<button className="btn btn-hyper" disabled={busy} onClick={advance}>Chuyển: {labels[next[o.status]]}</button>}{error&&<p role="alert" className="alert alert-danger mt-3">{error}</p>}</>}</Feedback></section>;
+}

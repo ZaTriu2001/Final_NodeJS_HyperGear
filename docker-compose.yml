@@ -2,15 +2,25 @@ name: hypergear
 x-service-env: &service-env
   NODE_ENV: production
   MONGODB_URI: mongodb://mongo:27017/hypergear?replicaSet=rs0
-  JWT_SECRET: ${JWT_SECRET:?Run npm run demo:setup first}
+  JWT_SECRET: ${JWT_SECRET:-}
   PUBLIC_ORIGIN: http://localhost:8080
   RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+  REDIS_URL: redis://redis:6379
+  ELASTICSEARCH_URL: http://elasticsearch:9200
 x-node: &node
   build:
     context: .
     dockerfile: infra/node.Dockerfile
   restart: unless-stopped
+  entrypoint: ["node", "infra/entrypoint.mjs"]
+  volumes: ["app-secrets:/run/hypergear:ro"]
 services:
+  secret-init:
+    image: node:24-alpine
+    restart: "no"
+    user: root
+    volumes: ["app-secrets:/run/hypergear"]
+    command: ["node", "-e", "const fs=require('fs');try{fs.writeFileSync('/run/hypergear/jwt-secret',require('crypto').randomBytes(48).toString('hex'),{flag:'wx',mode:0o644})}catch(e){if(e.code!=='EEXIST')throw e}"]
   web:
     build: { context: ., dockerfile: apps/web/Dockerfile }
     restart: unless-stopped
@@ -31,7 +41,7 @@ services:
       CATALOG_SERVICE_URL: http://catalog-service:3002
       ORDER_SERVICE_URL: http://order-service:3003
       AI_SERVICE_URL: http://ai-service:3005
-    depends_on: [auth-service, catalog-service, order-service]
+    depends_on: [auth-service, catalog-service, order-service, ai-service]
   gateway-b:
     <<: *node
     command: ["node", "services/api-gateway/src/index.js"]
@@ -40,10 +50,10 @@ services:
       PORT: 3000
       INSTANCE_NAME: gateway-b
       AUTH_SERVICE_URL: http://auth-service:3001
-      CATALOG_SERVICE_URL: http://catalog-service:3002
+      CATALOG_SERVICE_URL: http://catalog-replica:3002
       ORDER_SERVICE_URL: http://order-service:3003
       AI_SERVICE_URL: http://ai-service:3005
-    depends_on: [auth-service, catalog-service, order-service]
+    depends_on: [auth-service, catalog-replica, order-service, ai-service]
   auth-service:
     <<: *node
     command: ["node", "services/auth-service/src/index.js"]
@@ -60,6 +70,16 @@ services:
     environment: { <<: *service-env, PORT: 3002 }
     depends_on:
       seed: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+      elasticsearch: { condition: service_healthy }
+  catalog-replica:
+    <<: *node
+    command: ["node", "services/catalog-service/src/index.js"]
+    environment: { <<: *service-env, PORT: 3002 }
+    depends_on:
+      seed: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+      elasticsearch: { condition: service_healthy }
   order-service:
     <<: *node
     command: ["node", "services/order-service/src/index.js"]
@@ -78,6 +98,7 @@ services:
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       SMTP_FROM: ${SMTP_FROM:-HyperGear <no-reply@hypergear.local>}
     depends_on:
+      secret-init: { condition: service_completed_successfully }
       mongo: { condition: service_healthy }
       rabbitmq: { condition: service_healthy }
       mailpit: { condition: service_started }
@@ -87,6 +108,7 @@ services:
     command: ["node", "scripts/seed.mjs"]
     environment: { <<: *service-env }
     depends_on:
+      secret-init: { condition: service_completed_successfully }
       mongo: { condition: service_healthy }
   mongo:
     image: mongo:8
@@ -113,23 +135,37 @@ services:
     environment: { MP_DATABASE: /data/mailpit.db }
   redis:
     image: redis:7-alpine
-    profiles: ["bonus"]
+    ports: ["127.0.0.1:6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:9.1.4
-    profiles: ["bonus"]
+    ports: ["127.0.0.1:9200:9200"]
     environment:
       discovery.type: single-node
       xpack.security.enabled: "false"
       ES_JAVA_OPTS: -Xms512m -Xmx512m
     volumes: ["elastic-data:/usr/share/elasticsearch/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9200/_cluster/health >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
   ai-service:
     <<: *node
-    profiles: ["bonus"]
     command: ["node", "services/ai-service/src/index.js"]
     environment:
+      <<: *service-env
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-flash-lite-latest}
       PORT: 3005
+    depends_on:
+      seed: { condition: service_completed_successfully }
 volumes:
+  app-secrets:
   mongo-data:
   rabbit-data:
   mail-data:

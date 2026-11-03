@@ -22,7 +22,7 @@ export default function Header() {
             <div className="navbar-nav mx-auto gap-lg-3">
               <NavLink className="nav-link" to="/" onClick={closeMenu}>Trang chủ</NavLink>
               <NavLink className="nav-link" to="/san-pham" onClick={closeMenu}>Sản phẩm</NavLink>
-              <a className="nav-link" href="/#build-pc" onClick={closeMenu}>Build PC</a>
+              <NavLink className="nav-link" to="/build-pc" onClick={closeMenu}>Build PC</NavLink>
               <a className="nav-link" href="/#support" onClick={closeMenu}>Hỗ trợ</a>
             </div>
             <div className="d-flex align-items-center gap-2">

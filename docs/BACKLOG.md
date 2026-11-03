@@ -32,7 +32,7 @@ Các prefix commit: `feat`, `fix`, `test`, `docs`, `refactor`, `chore`.
 
 ## Danh sách Issue đề xuất
 
-Số bên dưới là mã công việc nội bộ, không mặc định trùng số Issue GitHub. Owner là phân công đề xuất để hai người review/tiếp tục; không khẳng định ai đã viết code. Cập nhật tiến độ M1–M2 ngày 02/11/2026.
+Số bên dưới là mã công việc nội bộ, không mặc định trùng số Issue GitHub. Owner là phân công đề xuất để hai người review/tiếp tục; không khẳng định ai đã viết code. Cập nhật tiến độ M1–M4 ngày 03/11/2026; xem M3-M4-TEST-REPORT.md để phân biệt code/test/hồ sơ chưa xong.
 
 `TGT` = Trần Gia Triều (519H0245), `NAQ` = Nguyễn Anh Quốc (523H0086).
 
@@ -57,21 +57,21 @@ Số bên dưới là mã công việc nội bộ, không mặc định trùng s
 | 17 | Loyalty earn/redeem và business-rule tests | TGT | M2 | #24 | Đã làm ledger/earn/redeem + test; dùng điểm không earn |
 | 18 | Order history, detail và status timeline | TGT | M2 | #6-7 | Đã làm history/detail/timeline + ownership tests |
 | 19 | RabbitMQ order event và email xác nhận | TGT | M2 | #20, Bonus microservices | Đã chạy RabbitMQ/SMTP, retry/dead-letter/dedup tests |
-| 20 | Comment cho guest và CRUD comment của mình | NAQ | M3 | #21 | Chưa làm |
-| 21 | Rating một lần/tài khoản và cho phép sửa | NAQ | M3 | #22 | Chưa làm |
-| 22 | Socket.IO realtime + Redis adapter | NAQ | M3 | #23, scaling | Chưa làm |
-| 23 | Admin user management và seed account | TGT | M3 | #25 | Có seed admin/customer + ban guard; CRUD chưa làm |
-| 24 | Admin product/category/variant/inventory CRUD | NAQ | M3 | #26 | Chưa làm |
-| 25 | Admin order list 20/trang và time filter | TGT | M3 | #28 | Có list 20/trang; time filter còn thiếu |
-| 26 | Admin order detail và forward-only status | TGT | M3 | #29 | Có detail API + forward-only status; cần hoàn thiện admin UI |
-| 27 | Simple dashboard | NAQ | M3 | #30 | Có metrics thật; cần đối chiếu hoàn thiện biểu đồ M3 |
-| 28 | Advanced dashboard theo kỳ + Chart.js | NAQ | M3 | #31 | Chưa làm |
-| 29 | Elasticsearch indexing và product search | NAQ | M4 | Bonus Elasticsearch | Container có; chưa index/search |
-| 30 | AI PC Builder: compatibility rules + Gemini RAG | NAQ | M4 | Bonus AI | Contract endpoint có; chưa triển khai |
-| 31 | Integration/E2E/Postman, security và responsive QA | Cả hai | M4 | UI/UX, Responsive | 27 test/nhóm local + 4 browser E2E CI + 18 request Postman đạt; còn QA cuối toàn dự án |
-| 32 | Seed 40-50 products, demo accounts/orders | Cả hai | M4 | Demo toàn bộ | 42 sản phẩm/7 danh mục + demo accounts, đơn tạo bằng smoke |
-| 33 | Rubric self-assessment và GitHub evidence | TGT | M4 | Teamworking | Checklist đã map; chưa chụp evidence |
-| 34 | README cuối, Docker clean-run và video checklist | Cả hai | M4 | Submission | Chưa hoàn tất |
+| 20 | Comment cho guest và CRUD comment của mình | NAQ | M3 | #21 | Đã làm; guest/account ownership + CRUD tests |
+| 21 | Rating một lần/tài khoản và cho phép sửa | NAQ | M3 | #22 | Đã làm; unique vote/edit/concurrent average tests |
+| 22 | Socket.IO realtime + Redis adapter | NAQ | M3 | #23, scaling | Đã làm; Redis 2 catalog và browser realtime CI đạt |
+| 23 | Admin user management và seed account | TGT | M3 | #25 | Đã làm; search/edit/ban/revoke session/RBAC tests |
+| 24 | Admin product/category/variant/inventory CRUD | NAQ | M3 | #26 | Đã làm; product/category/variant/SKU/inventory/soft archive/rename transaction |
+| 25 | Admin order list 20/trang và time filter | TGT | M3 | #28 | Đã làm; 20/trang, preset/custom date UTC+7, CI đạt |
+| 26 | Admin order detail và forward-only status | TGT | M3 | #29 | Đã làm; UI detail + forward-only + concurrent confirmation; đã vá delivered/status thiếu |
+| 27 | Simple dashboard | NAQ | M3 | #30 | Đã làm; metrics thật + Chart.js |
+| 28 | Advanced dashboard theo kỳ + Chart.js | NAQ | M3 | #31 | Đã làm; year/quarter/month/week/day/custom date, browser CI đạt |
+| 29 | Elasticsearch indexing và product search | NAQ | M4 | Bonus Elasticsearch | Đã làm; ES thật CI, exact-first/resync/rename/archive |
+| 30 | AI PC Builder: compatibility rules + Gemini RAG | NAQ | M4 | Bonus AI | Đã làm; rule engine + Gemini thật + catalog RAG; metadata demo chưa xác minh hãng |
+| 31 | Integration/E2E/Postman, security và responsive QA | Cả hai | M4 | UI/UX, Responsive | 58 test/test group + smoke/scaling; 39 request/49 assertion Postman; xem báo cáo 50 case |
+| 32 | Seed 40-50 products, demo accounts/orders | Cả hai | M4 | Demo toàn bộ | 50 sản phẩm/11 danh mục, 2 variants/product; demo accounts; đơn được tạo bằng smoke |
+| 33 | Rubric self-assessment và GitHub evidence | TGT | M4 | Teamworking | Có audit 03/11 và bằng chứng kỹ thuật; còn Insights/đóng góp hai người |
+| 34 | README cuối, Docker clean-run và video checklist | Cả hai | M4 | Submission | README/handoff/clean Docker CI đã có; video/Rubrik.docx/bộ nộp cuối chưa xong |
 
 ## Hai Issue không triển khai theo quyết định nhóm
 

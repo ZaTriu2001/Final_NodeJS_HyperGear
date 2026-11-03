@@ -22,17 +22,26 @@ const productSchema = new Schema({
   name: String, slug: { type: String, unique: true }, brand: String, category: String,
   shortDescription: String, description: [String], images: [String], image: String,
   rating: { type: Number, default: 0 }, sold: { type: Number, default: 0 }, newArrival: Boolean,
-  searchText: String, variants: [variant], active: { type: Boolean, default: true },
+  searchText: String, tags: [String], specs: Schema.Types.Mixed, variants: [variant], active: { type: Boolean, default: true },
 }, { timestamps: true });
 productSchema.index({ category: 1, brand: 1 });
+productSchema.index({ 'variants.sku': 1 }, { unique: true, sparse: true });
 export const Product = model('Product', productSchema);
+export const Category = model('Category', new Schema({ name: { type: String, unique: true }, active: { type: Boolean, default: true } }, { timestamps: true }));
+export const Comment = model('Comment', new Schema({
+  productId: { type: Schema.Types.ObjectId, index: true }, userId: Schema.Types.ObjectId,
+  guestOwnerHash: { type: String, select: false }, author: String, content: String,
+}, { timestamps: true, optimisticConcurrency: true }));
+const ratingSchema = new Schema({ productId: Schema.Types.ObjectId, userId: Schema.Types.ObjectId, stars: { type: Number, min: 1, max: 5 } }, { timestamps: true });
+ratingSchema.index({ productId: 1, userId: 1 }, { unique: true });
+export const Rating = model('Rating', ratingSchema);
 const cartLine = new Schema({ productId: Schema.Types.ObjectId, sku: String, quantity: Number }, { _id: false });
 export const Cart = model('Cart', new Schema({
   userId: { type: Schema.Types.ObjectId, unique: true }, lines: [cartLine], mergeIds: [String],
 }, { timestamps: true, optimisticConcurrency: true }));
 const orderLine = new Schema({
   productId: Schema.Types.ObjectId, slug: String, sku: String, productName: String, variantName: String,
-  image: String, unitPrice: Number, unitCost: Number, quantity: Number,
+  image: String, category: String, unitPrice: Number, unitCost: Number, quantity: Number,
 }, { _id: false });
 const orderSchema = new Schema({
   userId: { type: Schema.Types.ObjectId, index: true }, email: String, fullName: String,

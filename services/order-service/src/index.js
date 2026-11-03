@@ -5,7 +5,9 @@ import { Product, Cart, Order, User, LoyaltyEntry, Outbox, publicProduct, public
 import { appBase, auth, admin, start, rateLimit } from '@hypergear/core/http';
 import { integer, objectId, text, shippingFee, fail } from '@hypergear/core/validation';
 import { calculateOrderFinancials, calculateEarnedPoints } from './finance.js';
+import { orderAdmin } from './admin.js';
 const app = appBase('order-service');
+app.use('/admin', orderAdmin);
 const digest = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 
 function validateLines(lines) {
@@ -89,7 +91,7 @@ async function quote(userId, body, session = null) {
   if (!cart.lines.length) fail(400, 'Giỏ hàng đang trống.');
   const items = await resolveLines(cart.lines, session, true);
   const lines = items.map(item => ({ productId: item.product._id, slug: item.product.slug, sku: item.variant.sku,
-    productName: item.product.name, variantName: item.variant.name, image: item.variant.image,
+    productName: item.product.name, variantName: item.variant.name, image: item.variant.image, category: item.product.category,
     unitPrice: item.variant.price, unitCost: item.unitCost, quantity: item.quantity }));
   const finances = calculateOrderFinancials(lines, points);
   if (points > finances.revenue) fail(400, 'Điểm giảm không được vượt tiền hàng.');
@@ -146,22 +148,17 @@ app.get('/loyalty', auth, async (request, response) => {
   const entries = await LoyaltyEntry.find({ userId: request.user._id }).sort({ createdAt: -1 }).limit(50);
   response.json({ balance: request.user.loyaltyPoints, entries });
 });
-// Minimal admin order operation for M2 confirmation email; full admin filters/CRUD belong to M3.
-app.get('/admin/list', auth, admin, async (_request, response) => response.json({ items: (await Order.find().sort({ createdAt: -1 }).limit(20)).map(publicOrder) }));
 app.patch('/admin/:id/status', auth, admin, async (request, response) => {
   const id = objectId(request.params.id); const statuses = ['pending', 'confirmed', 'shipping', 'delivered'];
+  if (!statuses.includes(request.body.status)) fail(400, 'Trạng thái đơn không hợp lệ.');
   let order;
   await mongoose.connection.transaction(async session => {
     order = await Order.findById(id).session(session); if (!order) fail(404, 'Không tìm thấy đơn.');
-    if (statuses[statuses.indexOf(order.status) + 1] !== request.body.status) fail(409, 'Chỉ được chuyển sang trạng thái kế tiếp.');
+    if (order.status === 'delivered' || statuses[statuses.indexOf(order.status) + 1] !== request.body.status) fail(409, 'Chỉ được chuyển sang trạng thái kế tiếp.');
     order.status = request.body.status; order.statusHistory.push({ status: order.status, at: new Date() }); await order.save({ session });
     if (order.status === 'confirmed') await Outbox.create([{ _id: randomUUID(), type: 'order.confirmed', payload: { email: order.email, fullName: order.fullName, orderId: order.id, totalPaid: order.totalPaid, lines: publicOrder(order).lines } }], { session });
   });
   response.json(publicOrder(order));
-});
-app.get('/admin/metrics', auth, admin, async (_request, response) => {
-  const [totals] = await Order.aggregate([{ $match: { paymentStatus: 'paid' } }, { $group: { _id: null, revenue: { $sum: '$revenue' }, profit: { $sum: '$profit' }, orders: { $sum: 1 } } }]);
-  response.json(totals ?? { revenue: 0, profit: 0, orders: 0 });
 });
 app.get('/:id', auth, async (request, response) => {
   const order = await Order.findOne({ _id: objectId(request.params.id), userId: request.user._id });

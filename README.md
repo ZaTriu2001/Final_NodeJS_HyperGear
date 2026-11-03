@@ -1,6 +1,6 @@
 # HyperGear — Node.js ecommerce
 
-Monorepo React/Vite + Node.js 24/Express + MongoDB, API Gateway, Auth, Catalog, Order và Notification. RabbitMQ chuyển sự kiện email bất đồng bộ. Nhánh M1–M2 bổ sung storefront đọc MongoDB và luồng tài khoản → giỏ → thanh toán mô phỏng → lịch sử đơn.
+Monorepo React/Vite + Node.js 24/Express + MongoDB: Gateway, Auth, Catalog (2 replicas), Order, Notification và AI. RabbitMQ chuyển sự kiện email; Redis đồng bộ Socket.IO; Elasticsearch tìm sản phẩm; Gemini diễn giải cấu hình PC từ catalog và rule engine.
 
 ## Chạy đầy đủ bằng Docker
 
@@ -18,7 +18,7 @@ docker compose up -d --build --wait --wait-timeout 180
 - Admin: admin@gmail.com / HyperGear@2026
 - Customer: customer@gmail.com / Customer@2026
 
-Seed tự chạy: 42 sản phẩm, 7 danh mục, 2 phiên bản/sản phẩm và hai tài khoản demo. Chạy lại seed không ghi đè tài khoản, tồn kho, giá hoặc đơn đã có. Dữ liệu, giá và hình minh họa phục vụ bài tập, không phải danh mục thương mại đã xác minh. Các cổng chỉ bind loopback. Không dùng tài khoản demo để triển khai công khai.
+Seed tự chạy: 50 sản phẩm, 11 danh mục, 2 phiên bản/sản phẩm và hai tài khoản demo. Chạy lại seed không ghi đè tài khoản, tồn kho, giá hoặc đơn đã có; metadata PC thiếu được bổ sung. Dữ liệu, thông số PC, giá và hình minh họa phục vụ bài tập, không phải danh mục thương mại đã xác minh. Các cổng chỉ bind loopback. Không dùng tài khoản demo để triển khai công khai. Khi không có JWT_SECRET, Docker tự tạo bí mật trong volume riêng, không dùng chuỗi mặc định công khai.
 
 ~~~sh
 docker compose ps
@@ -37,6 +37,8 @@ npm run demo:setup
 npm run demo:local
 ~~~
 
+Để dùng bản frontend build ổn định khi demo (không phụ thuộc cache HMR), chạy `npm run demo:local -- --with-messaging --production`. Redis/Elasticsearch native là tùy chọn qua `NATIVE_REDIS_URL`/`NATIVE_ELASTICSEARCH_URL`; bỏ trống thì Socket.IO chạy một instance và tìm kiếm MongoDB. Nghiệm thu đầy đủ 2 replicas + Redis + Elasticsearch dùng Docker/CI.
+
 Script tải MongoDB chính thức qua mongodb-memory-server nhưng dùng WiredTiger và lưu dữ liệu thật trong .local/mongo. Không giả lập cơ sở dữ liệu. Nếu không bật các tiến trình RabbitMQ/Mailpit/worker, sự kiện chỉ nằm trong outbox, chưa gửi email. Xem docs/M1-M2-HANDOFF.md để chạy phần email native.
 
 ## Kiểm thử
@@ -46,6 +48,7 @@ npm run lint
 npm test
 npm run build
 npm run test:integration
+npm run test:m3-m4
 npm run test:smoke
 npm run test:messaging
 ~~~
@@ -54,10 +57,10 @@ npm run test:messaging
 - Integration: khởi tạo MongoDB replica set riêng, kiểm tra auth, profile, addresses, catalog, transaction, idempotency, stock race, loyalty và quyền truy cập; không sửa dữ liệu demo.
 - Smoke: cần full stack đang chạy; tạo một đơn thật trong database demo và ba email trong Mailpit.
 - Messaging: cần RabbitMQ :5672 và Mailpit :8025/:1025; dùng database và queue kiểm thử riêng, kiểm tra SMTP/replay/retry/dead-letter.
-- CI: lint → unit/frontend → build → integration → Docker full stack → smoke → messaging.
+- CI: lint → unit/frontend → build → integration → Docker full stack → smoke → M3/M4 (Redis + Elasticsearch thật) → scaling → 10 browser tests → messaging.
 - Postman: import postman/HyperGear.postman_collection.json; chạy collection theo thứ tự. Cookie được Postman giữ tự động; body không gửi giá vốn/giá bán do client quyết định.
 
-Browser E2E (cần stack đang chạy ở localhost:8080): chạy `npx playwright install chromium --only-shell`, sau đó `npm run test:browser`. Có hai viewport desktop 1440px và mobile 390px; kiểm tra menu/filter/phân trang và luồng guest → đăng ký → checkout → tải lại đơn. GitHub Actions cũng chạy bộ này; ảnh và báo cáo nằm trong artifact `browser-qa` (giữ 14 ngày). Đây là Chromium mô phỏng viewport mobile, không thay thế kiểm thử Safari trên iPhone thật.
+Browser E2E (cần stack đang chạy ở localhost:8080): chạy `npx playwright install chromium --only-shell`, sau đó `npm run test:browser`. Có hai viewport desktop 1440px và mobile 390px; kiểm tra menu/filter/phân trang, guest → đăng ký → checkout → tải lại đơn, comment realtime giữa hai browser, admin dashboard/order và PC Builder. GitHub Actions lưu ảnh/báo cáo trong artifact `browser-qa` (14 ngày). Chromium mobile viewport không thay thế Safari/iPhone thật.
 
 ## Các chức năng hiện có
 
@@ -72,7 +75,11 @@ Browser E2E (cần stack đang chạy ở localhost:8080): chạy `npx playwrigh
 - Revenue là tiền hàng trước loyalty, không tính ship; profit = revenue - loyaltyDiscount - costOfGoods. TotalPaid = revenue - loyaltyDiscount + shippingFee.
 - Ship 30.000đ tại Hồ Chí Minh, 50.000đ tỉnh/thành khác; không thuế/coupon.
 - Lịch sử/chi tiết đơn của đúng tài khoản; snapshot giá và địa chỉ; timeline pending → confirmed → shipping → delivered.
-- Admin tối thiểu cho M2: 20 đơn gần nhất, chuyển tiếp trạng thái và totals revenue/profit thật. CRUD/filter/dashboard mở rộng thuộc M3.
+- Admin: sửa/khóa khách hàng (thu hồi phiên), quản lý sản phẩm/variants/tồn kho/danh mục, ngừng bán giữ lịch sử, đơn 20/trang/lọc thời gian/chi tiết/chuyển tiếp trạng thái.
+- Dashboard Chart.js: revenue/profit, users/new users/orders/quantity, nhóm năm/quý/tháng/tuần/ngày, khoảng ngày UTC+7, category và best sellers.
+- Bình luận guest/account, sửa/xóa đúng chủ sở hữu; rating một vote/account được sửa; Socket.IO + Redis cập nhật giữa hai catalog replicas.
+- Elasticsearch index đồng bộ thay đổi sản phẩm, ưu tiên khớp đúng rồi mới fuzzy; MongoDB vẫn quyết định giá/tồn/visibility. API báo rõ provider khi fallback.
+- PC Builder: ngân sách cứng, 8 loại linh kiện (hoặc 7 nếu dùng iGPU), kiểm tra socket/RAM/nguồn/kích thước/tản nhiệt; Gemini giải thích từ catalog. Chat RAG lấy ngữ cảnh MongoDB, không phải vector search. Không có key/hết quota thì ghi rõ chỉ dùng rule engine, không giả AI thành công.
 - Receipt sau thanh toán; confirmation sau admin confirmed; email reset qua RabbitMQ + SMTP.
 - Google OAuth code flow + PKCE/state/nonce và ID token verification đã có. Cần Google client ID/secret để dùng thực tế; chưa được tính là đã nghiệm thu Google.
 
@@ -92,10 +99,12 @@ docker compose up -d --force-recreate auth-service
 
 Không dùng mã/token tự tạo để giả lập Google thành công. Chỉ email do Google có thẩm quyền xác nhận (Gmail hoặc managed Workspace) được tự liên kết tài khoản cùng email; email Google bên ngoài hai loại này không tự gộp vào tài khoản đã tồn tại.
 
-## Kiến trúc và phạm vi tiếp theo
+## Cấu hình Gemini
 
-Xem docs/ARCHITECTURE.md, docs/M1-M2-HANDOFF.md và docs/BACKLOG.md. M3: admin đầy đủ, review/rating/realtime/scale nghiệp vụ. M4: Elasticsearch, Gemini RAG, QA cuối và hồ sơ nộp.
+Đặt `GEMINI_API_KEY` và `GEMINI_MODEL=gemini-flash-lite-latest` trong `.env` (đã gitignore), không dán key vào frontend, collection, ảnh hay issue. Model alias có thể thay đổi phía Google; đổi GEMINI_MODEL nếu tài khoản không được hỗ trợ. Docker: `docker compose up -d --force-recreate ai-service`; native: khởi động lại demo. Vào `/build-pc` để thử. Kết quả chỉ là cấu hình dữ liệu demo, cần xác minh BIOS/đầu cắm/thông số hãng trước mua hoặc lắp máy thật.
 
-Redis, Elasticsearch, AI skeleton nằm trong Compose profile bonus; M1–M2 không khởi động chúng để tiết kiệm RAM. Các container này chưa tương đương việc đã hoàn thành chức năng bonus.
+## Kiến trúc và bàn giao
+
+Xem docs/ARCHITECTURE.md, docs/M3-M4-HANDOFF.md, docs/M3-M4-TEST-REPORT.md và docs/BACKLOG.md. Redis/Elasticsearch/AI là thành phần full stack mặc định, không còn profile bonus. Google OAuth, ảnh/thông số model thực, video và bằng chứng đóng góp hai người cần hoàn tất trước nộp.
 
 Nhóm: Trần Gia Triều — 519H0245; Nguyễn Anh Quốc — 523H0086. Deadline và điều kiện 2 commit/tuần không còn dùng làm điều kiện đánh giá tiến độ theo cập nhật của nhóm.

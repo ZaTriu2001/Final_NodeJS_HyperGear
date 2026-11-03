@@ -1,12 +1,13 @@
-# Kiến trúc HyperGear (M1–M2)
+# Kiến trúc HyperGear (M1–M4)
 
-Browser → Nginx :8080 → Gateway A/B → Auth / Catalog / Order.
+Browser → Nginx :8080 → Gateway A/B → Auth / Catalog A/B / Order / AI.
 React static web dùng cùng origin /api. Cookie HttpOnly/SameSite=Lax; API ghi yêu cầu header X-HyperGear-Client và kiểm tra Origin. JWT có session ID; MongoDB lưu phiên và trạng thái user, nên logout/ban/password reset có hiệu lực cả khi qua gateway khác.
 
 ## Ranh giới service
 
 - Auth sở hữu account, addresses, session, Google callback, reset. Chỉ update field whitelist.
-- Catalog cung cấp API sản phẩm public, search/filter/sort/pagination và ẩn costPrice.
+- Catalog cung cấp API public/admin, search/filter/sort/pagination, review/rating và ẩn costPrice ở public. Hai replica dùng chung MongoDB và Redis Socket.IO adapter.
+- AI đọc catalog public, chọn cấu hình bằng rule engine rồi gọi Gemini để diễn giải; không cho mô hình tự sửa giá, tồn hoặc tổng tiền. Chat lấy top-6 sản phẩm theo từ khóa MongoDB để làm RAG (không vector DB).
 - Order sở hữu cart/order/loyalty ledger; lấy giá và tồn từ MongoDB, không tin giá client.
 - Notification chạy outbox relay và RabbitMQ consumer; SMTP worker xử lý riêng khỏi request checkout.
 - Gateway stateless; Nginx least_conn tới hai gateway.
@@ -31,7 +32,15 @@ MongoDB replica set 1 node dùng volume; RabbitMQ/mailpit có volume. Docker hos
 
 Dữ liệu seed chỉ insert nếu chưa tồn tại. Khi nâng schema, dùng migration riêng; không chạy seed để reset hàng hoặc mật khẩu của người đã dùng.
 
-## Phạm vi chưa nghiệm thu
+## Realtime, tìm kiếm và scaling
 
-Google OAuth cần credentials/consent/test user của nhóm. Redis cache/Socket.IO, ES indexing/search, Gemini/RAG và nhiều replica nghiệp vụ thuộc M3–M4. Hai gateway không thay thế bằng chứng scale đầy đủ của cả hệ thống.
+Nginx proxy HTTP/WebSocket tới hai gateway; mỗi gateway gắn một catalog replica. Socket.IO chỉ dùng WebSocket nên không cần sticky session cho polling. Sự kiện `reviews:changed` gửi qua Redis pub/sub, browser đọc lại dữ liệu HTTP có kiểm tra quyền. Kết nối lại cũng đọc lại để không phụ thuộc sự kiện bị bỏ lỡ. Comment guest nhận cookie HttpOnly ngẫu nhiên; DB chỉ lưu hash chủ sở hữu, API không trả hash/token.
+
+Elasticsearch chỉ lưu name/searchText/active, không giá vốn hay dữ liệu tài khoản. Catalog đồng bộ thay đổi sau admin write và polling 5 giây, index riêng cho test. Search trả IDs, MongoDB lọc active và đọc giá/tồn mới nhất. Nếu ES lỗi, API trả `mongodb-fallback`, không tuyên bố đang dùng ES. Đổi tên category chuyển sản phẩm trong transaction, không sửa snapshot phân loại đơn cũ.
+
+CI kiểm tra phân phối request qua hai gateway và session dùng lại được; test Redis khởi động hai catalog process độc lập. Auth/order/AI hiện một replica; chưa có HA MongoDB, autoscaling hoặc thử tải production. Giới hạn request lưu bucket trong MongoDB, dùng chung giữa process.
+
+## Phần cần cấu hình ngoài source
+
+Google OAuth cần credentials/consent/test user của nhóm. Gemini cần key server-side; thiếu key/HTTP lỗi trả trạng thái rules rõ ràng. PC compatibility dựa metadata demo và không bao quát mọi BIOS/cáp/connector/lane PCIe. Không xem đây là tư vấn lắp máy thương mại đã được xác minh.
 
