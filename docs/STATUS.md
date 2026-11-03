@@ -15,8 +15,9 @@ Cập nhật: 02/11/2026, Asia/Ho_Chi_Minh.
 ## Bằng chứng kiểm thử
 
 - Local: 11 test frontend, 3 test finance, 12 nhóm integration trên Mongo replica set, 1 test RabbitMQ/SMTP đều đạt; smoke mua hàng/email đạt.
-- Lint/build đạt. Các test UI dùng jsdom, không phải kiểm tra ảnh chụp trên browser thật.
-- GitHub Actions chạy lint/test/build/integration và Docker Compose + smoke + messaging. Xem kết quả mới nhất ở [PR #1](https://github.com/ZaTriu2001/Final_NodeJS_HyperGear/pull/1).
+- Lint/build đạt. Có 11 test React dùng jsdom và 4 test browser Chromium (desktop/mobile) đạt trên CI; đây là hai bộ kiểm thử khác nhau.
+- GitHub Actions của commit 4570fba đạt toàn bộ lint/test/build/integration, Docker Compose, smoke, browser và messaging: [run 41485320087](https://github.com/ZaTriu2001/Final_NodeJS_HyperGear/actions/runs/41485320087). Xem thay đổi ở [PR #1](https://github.com/ZaTriu2001/Final_NodeJS_HyperGear/pull/1).
+- Đã thử trực tiếp trên giao diện: giỏ khách → đăng nhập → thất bại/thành công mô phỏng → đơn dùng loyalty → admin xác nhận → 2 email. Xem [báo cáo kiểm thử](M1-M2-TEST-REPORT.md).
 - Không dùng kết quả test làm cam kết được 100% điểm rubric.
 
 ## Demo
@@ -35,7 +36,7 @@ Native cần RabbitMQ/Mailpit đã cài. Ctrl+C dừng tiến trình; mở lại
 ## Phần còn lại
 
 1. Google OAuth: tạo web client/consent/test users, đặt ID/secret vào .env, kiểm thử thật.
-2. UI/responsive: kiểm tra trình duyệt khi Mac mở khóa; gallery hiện là SVG minh họa, chưa phải ảnh chính hãng từng model.
+2. UI/responsive: đã có kiểm thử Chromium desktop/mobile trên CI và demo giao diện; còn Safari/iPhone thật và QA toàn bộ trang. Gallery hiện là SVG minh họa, chưa phải ảnh chính hãng từng model.
 3. M3: comment/rating, Socket.IO/Redis, admin CRUD/filter đầy đủ, dashboard nâng cao và kiểm chứng scaling.
 4. M4: Elasticsearch, Gemini/RAG/compatibility, QA/hồ sơ nộp/evidence/video.
 5. Review PR với thành viên còn lại; phân công trong BACKLOG là đề xuất, không phải bằng chứng đóng góp đã hoàn thành.

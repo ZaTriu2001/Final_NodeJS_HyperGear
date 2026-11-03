@@ -41,7 +41,7 @@ Số bên dưới là mã công việc nội bộ, không mặc định trùng s
 | 1 | Khởi tạo monorepo, quy ước Git và README | TGT | M1 | Teamworking | Có monorepo + README + PR #1 |
 | 2 | Docker Compose, Nginx và 2 gateway | TGT | M1 | Horizontal scaling | Compose + 2 gateway; kiểm chứng trong CI, native demo chạy |
 | 3 | GitHub Actions lint/test/build | NAQ | M1 | Bonus CI/CD | Có lint/test/build/integration + full-stack CI; xem PR |
-| 4 | Design system, logo, header/footer responsive | NAQ | M1 | UI/UX, Responsive | Đã nối UI; cần QA trình duyệt/responsive |
+| 4 | Design system, logo, header/footer responsive | NAQ | M1 | UI/UX, Responsive | Chromium desktop/mobile E2E đạt; menu mobile đóng sau chọn trang; còn QA Safari/toàn bộ trang |
 | 5 | Landing page New/Best Seller/Category | NAQ | M1 | #8 | Mongo API, mới/bán chạy/3 danh mục, phân trang section |
 | 6 | Catalog theo danh mục và pagination 12 item | NAQ | M1 | #9-10 | Mongo API, 12/trang, giữ filter trong URL |
 | 7 | Product detail, 3 ảnh, 5 dòng mô tả, variant | NAQ | M1 | #11-12 | API + variants + 3 SVG minh họa; cần ảnh model thật nếu yêu cầu |
@@ -68,7 +68,7 @@ Số bên dưới là mã công việc nội bộ, không mặc định trùng s
 | 28 | Advanced dashboard theo kỳ + Chart.js | NAQ | M3 | #31 | Chưa làm |
 | 29 | Elasticsearch indexing và product search | NAQ | M4 | Bonus Elasticsearch | Container có; chưa index/search |
 | 30 | AI PC Builder: compatibility rules + Gemini RAG | NAQ | M4 | Bonus AI | Contract endpoint có; chưa triển khai |
-| 31 | Integration/E2E/Postman, security và responsive QA | Cả hai | M4 | UI/UX, Responsive | Có 27 test/nhóm + smoke + Postman; browser responsive QA còn thiếu |
+| 31 | Integration/E2E/Postman, security và responsive QA | Cả hai | M4 | UI/UX, Responsive | 27 test/nhóm local + 4 browser E2E CI + 18 request Postman đạt; còn QA cuối toàn dự án |
 | 32 | Seed 40-50 products, demo accounts/orders | Cả hai | M4 | Demo toàn bộ | 42 sản phẩm/7 danh mục + demo accounts, đơn tạo bằng smoke |
 | 33 | Rubric self-assessment và GitHub evidence | TGT | M4 | Teamworking | Checklist đã map; chưa chụp evidence |
 | 34 | README cuối, Docker clean-run và video checklist | Cả hai | M4 | Submission | Chưa hoàn tất |

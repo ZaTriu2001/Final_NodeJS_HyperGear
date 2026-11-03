@@ -14,7 +14,8 @@
 | Đơn | Customer history/detail/timeline, ownership; admin tối thiểu để xác nhận/chuyển tiến trạng thái |
 | Email | Outbox → RabbitMQ → SMTP Mailpit; receipt + admin confirmation + recovery; retry 5 lần và dead-letter |
 | Tests local | 11 frontend + 3 finance + 12 integration + 1 messaging đều đạt; live smoke đạt; lint/build đạt |
-| GitHub/Docker | Full Compose + smoke/messaging đạt trên GitHub Actions (run 41482656356); bản cập nhật cuối tiếp tục được CI kiểm tra |
+| GitHub/Docker | Full Compose + smoke/browser/messaging đạt trên GitHub Actions của commit 4570fba (run 41485320087) |
+| Browser | 4/4 E2E Chromium desktop/mobile đạt trên CI; có demo trực tiếp và ảnh đơn dùng loyalty trong báo cáo kiểm thử |
 | Postman | Đã chạy collection bằng Newman: 18 request, 19 assertions, 0 lỗi |
 
 Không tính OAuth là đã hoàn thành nghiệm thu: code authorization-code/PKCE/state/nonce/ID-token đã triển khai, nhưng chưa có GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET của nhóm để chạy đăng nhập Google thật. Nút Google chỉ xuất hiện khi cấu hình đủ. Không giả lập Google để ghi hoàn tất.
@@ -33,7 +34,7 @@ Customer: customer@gmail.com / Customer@2026
 
 Admin: admin@gmail.com / HyperGear@2026
 
-Đã tạo một đơn demo và email để kiểm chứng. SMTP Mailpit nhận thư tại máy, không gửi tới tài khoản Gmail thật.
+Đã tạo đơn demo và email để kiểm chứng. Đơn kiểm thử giao diện dùng loyalty: 6ae971872f94a3b178278ebc. SMTP Mailpit nhận thư tại máy, không gửi tới tài khoản Gmail thật. Xem [báo cáo kiểm thử](M1-M2-TEST-REPORT.md).
 
 Docker Desktop trên máy chưa mở được; ứng dụng điều khiển UI báo Mac đang khóa. Đã chạy native Node.js **24.19.0**, MongoDB **8.0.16** replica set, RabbitMQ **4.4.0**, Mailpit **1.33.0**. Có cài RabbitMQ/Mailpit và dependency qua Homebrew. Không tạo dịch vụ tự khởi động khi login, không mở tunnel/public hosting.
 
@@ -71,7 +72,7 @@ Code liên kết tự động Gmail/Workspace cùng email. Email bên ngoài hai
 
 - Dependency audit ngày 02/11/2026 sau cập nhật: production 0 cảnh báo; full audit còn 6 cảnh báo moderate trong chuỗi dev-tool ESLint/minimatch. Không dùng audit fix --force để ép hạ major ESLint; cần theo dõi bản vá upstream. Audit không thay thế kiểm thử bảo mật ứng dụng.
 
-- Trình duyệt thật/responsive cần kiểm tra lại khi Mac được mở khóa; các test React chạy trong jsdom, không được coi là screenshot QA.
+- Chromium desktop/mobile đã đạt 4 E2E trên CI và có demo thao tác trực tiếp. Chưa kiểm thử Safari/iPhone thật; test React/jsdom không được tính thay thế browser QA.
 - SMTP không có exactly-once tuyệt đối: crash sau gửi trước khi ghi sent vẫn có thể tạo bản lặp. Ledger/Message-ID xử lý replay thông thường; test đã kiểm chứng.
 - M3 chưa hoàn tất: admin CRUD/filter đầy đủ, review/rating/Socket.IO/Redis, dashboard nâng cao, scale nghiệp vụ.
 - M4 chưa hoàn tất: Elasticsearch indexing/search, AI Gemini/RAG, QA cuối, video/evidence.
