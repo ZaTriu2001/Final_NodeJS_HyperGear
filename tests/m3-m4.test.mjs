@@ -42,6 +42,12 @@ test('admin catalog CRUD validates variants/SKUs, hides costs publicly, preserve
   assert(await Product.findById(created.data._id));
   const category=await admin('catalog','/admin/categories','POST',{name:'Danh mục M3'});assert.equal(category.status,201);
   assert.equal((await admin('catalog','/admin/categories/'+category.data._id,'PATCH',{active:false})).status,200);
+  const renamed=await admin('catalog','/admin/categories/'+category.data._id,'PATCH',{name:'Danh mục M3 mới',active:true});assert.equal(renamed.status,200);
+  await admin('catalog','/admin/products/'+created.data._id,'PUT',{...body,category:renamed.data.name});
+  assert.equal((await admin('catalog','/admin/categories/'+category.data._id,'PATCH',{active:false})).status,409);
+  assert.equal((await admin('catalog','/admin/categories/'+category.data._id,'PATCH',{name:'Danh mục M3 cuối'})).status,200);
+  assert.equal((await Product.findById(created.data._id)).category,'Danh mục M3 cuối');
+  await admin('catalog','/admin/products/'+created.data._id,'DELETE');
 });
 test('guest comments retain ownership; other guests/users cannot edit; pagination and no owner-token leakage',async()=>{
   const made=await guest('catalog','/products/'+product.id+'/comments','POST',{author:'Khách guest',content:'Cho hỏi CPU này có phù hợp học tập?'});assert.equal(made.status,201);assert.equal(made.data.guestOwnerHash,undefined);
@@ -77,6 +83,11 @@ test('PC builder returns a complete compatible in-stock build within budget; imp
 });
 test('Elasticsearch is used for keyword search and follows catalog changes', {skip:!process.env.ELASTICSEARCH_URL}, async()=>{
   let result;for(let i=0;i<40;i++){result=await guest('catalog','/products?q=man%20hinh');if(result.data.searchProvider==='elasticsearch'&&result.data.total===8)break;await delay(500);}assert.equal(result.data.searchProvider,'elasticsearch');assert.equal(result.data.total,8);assert(result.data.items.every(p=>p.category==='Màn hình'));
+  const original=await Product.findById(product.id).lean();const token='uniquesearchhypergear';
+  const changed=await admin('catalog','/admin/products/'+product.id,'PUT',{...original,name:token});assert.equal(changed.status,200);
+  for(let i=0;i<40;i++){result=await guest('catalog','/products?q='+token);if(result.data.total===1)break;await delay(500);}assert.equal(result.data.searchProvider,'elasticsearch');assert.equal(result.data.total,1);assert.equal(result.data.items[0].id,product.id);
+  await admin('catalog','/admin/products/'+product.id,'DELETE');assert.equal((await guest('catalog','/products?q='+token)).data.total,0);
+  await admin('catalog','/admin/products/'+product.id,'PUT',original);
 });
 test('Redis adapter broadcasts review updates between two catalog instances', {skip:!process.env.REDIS_URL}, async()=>{
   const port=await freePort();secondCatalog=spawn(process.execPath,['services/catalog-service/src/index.js'],{env:{...stack.env,PORT:String(port)},stdio:'ignore'});

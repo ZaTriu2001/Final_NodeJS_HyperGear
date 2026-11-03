@@ -30,6 +30,9 @@ export async function syncSearch() {
 }
 export async function searchIds(q) {
   if (!base) return null;
-  const result = await elastic('/' + index + '/_search', { method: 'POST', body: JSON.stringify({ size: 10000, _source: false, query: { bool: { filter: [{ term: { active: true } }], must: [{ multi_match: { query: normalize(q), fields: ['searchText', 'name^2'], fuzziness: 'AUTO', operator: 'and' } }] } } }) });
+  // Exact tokens first: fuzzy Vietnamese short words otherwise match unrelated categories.
+  const search = fuzziness => elastic('/' + index + '/_search', { method: 'POST', body: JSON.stringify({ size: 10000, _source: false, query: { bool: { filter: [{ term: { active: true } }], must: [{ multi_match: { query: normalize(q), fields: ['searchText', 'name^2'], fuzziness, operator: 'and' } }] } } }) });
+  let result = await search(0);
+  if (!result.hits.hits.length) result = await search('AUTO:4,7');
   return result.hits.hits.map(hit => hit._id);
 }

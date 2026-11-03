@@ -14,6 +14,7 @@ export default function ProductPage() {
     ?? '';
   const [selectedSku, setSelectedSku] = useState(defaultSku);
   const [activeImage, setActiveImage] = useState(0);
+  const [liveRating, setLiveRating] = useState(null);
   const { addItem, busy } = useCart();
 
   if (loading || error) return <div className="container py-5"><Feedback loading={loading} error={error} /></div>;
@@ -31,7 +32,7 @@ export default function ProductPage() {
         <div className="col-lg-6">
           <span className="detail-category">{product.brand} • {product.category}</span>
           <h1 className="detail-title">{product.name}</h1>
-          <div className="rating detail-rating"><i className="bi bi-star-fill" /> {product.rating} <span>• {product.sold} đã bán • SKU {variant.sku}</span></div>
+          <div className="rating detail-rating"><i className="bi bi-star-fill" /> {liveRating?.productId === product.id ? liveRating.rating : product.rating} <span>• {product.sold} đã bán • SKU {variant.sku}</span></div>
           <div className="detail-price">{formatVnd(variant.price)}</div>
           <p className="detail-lead">{product.shortDescription}</p>
           <h2 className="option-title">Chọn phiên bản</h2>
@@ -41,7 +42,7 @@ export default function ProductPage() {
         </div>
       </div></div>
       <section className="product-description"><div className="container"><div className="row g-5"><div className="col-lg-7"><span className="section-label">CHI TIẾT SẢN PHẨM</span><h2>Hiệu năng được lựa chọn kỹ.</h2>{product.description.map((line) => <p key={line}>{line}</p>)}</div><div className="col-lg-5"><div className="account-card"><h3 className="h4">Chọn đúng phiên bản</h3><p>Mỗi SKU có giá, tồn kho và hình ảnh riêng. Xem bình luận bên dưới hoặc hỏi trợ lý để hiểu rõ vai trò linh kiện.</p><Link className="btn btn-outline-dark" to="/build-pc">Tư vấn Build PC</Link></div></div></div></div></section>
-      <div className="container pb-5"><Reviews key={product.id} productId={product.id}/></div>
+      <div className="container pb-5"><Reviews key={product.id} productId={product.id} onRating={setLiveRating}/></div>
     </div>
   );
 }

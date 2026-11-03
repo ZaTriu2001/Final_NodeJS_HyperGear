@@ -5,10 +5,11 @@ import { useAuth } from '../state/contexts';
 import { useResource } from '../lib/useResource';
 import Pagination from './Pagination';
 import Feedback from './Feedback';
-export default function Reviews({ productId }) {
+export default function Reviews({ productId, onRating }) {
   const { user } = useAuth(); const [page, setPage] = useState(1); const [message, setMessage] = useState(''); const [busy, setBusy] = useState(false); const [connected, setConnected] = useState(false);
   const resource = useResource('/catalog/products/' + productId + '/reviews?page=' + page);
   const reload = resource.reload;
+  useEffect(() => { if (resource.data) onRating?.({ productId, rating: resource.data.rating }); }, [resource.data, onRating, productId]);
   useEffect(() => {
     const socket = io({ path: '/socket.io', transports: ['websocket'] });
     socket.on('connect', () => { setConnected(true); socket.emit('join-product', productId); reload(); });

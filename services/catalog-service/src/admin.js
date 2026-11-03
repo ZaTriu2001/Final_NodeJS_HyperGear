@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import mongoose from 'mongoose';
 import { Product, Category, publicProduct } from '@hypergear/core/models';
 import { auth, admin } from '@hypergear/core/http';
 import { text, integer, objectId, normalize, fail } from '@hypergear/core/validation';
@@ -51,9 +52,26 @@ adminRoutes.delete('/products/:id', async (req, res) => { const p = await Produc
 adminRoutes.get('/categories', async (_req, res) => res.json({ items: await Category.find().sort({ name: 1 }) }));
 adminRoutes.post('/categories', async (req, res) => res.status(201).json(await Category.create({ name: text(req.body.name, 'Danh mục', 1, 80) })));
 adminRoutes.patch('/categories/:id', async (req, res) => {
-  const c = await Category.findById(objectId(req.params.id)); if (!c) fail(404, 'Không tìm thấy danh mục.');
-  if (req.body.name !== c.name && req.body.name !== undefined) fail(400, 'Để giữ phân loại đơn cũ, hãy tạo danh mục mới và chuyển sản phẩm thay vì đổi tên.');
-  if (typeof req.body.active !== 'boolean') fail(400, 'Trạng thái danh mục không hợp lệ.');
-  if (!req.body.active && await Product.exists({ category: c.name, active: true })) fail(409, 'Chuyển/ngừng bán các sản phẩm trong danh mục trước.');
-  c.active = req.body.active; await c.save(); res.json(c);
+  const id = objectId(req.params.id);
+  if (req.body.name === undefined && req.body.active === undefined) fail(400, 'Cần tên hoặc trạng thái danh mục.');
+  const name = req.body.name === undefined ? undefined : text(req.body.name, 'Danh mục', 1, 80);
+  if (req.body.active !== undefined && typeof req.body.active !== 'boolean') fail(400, 'Trạng thái danh mục không hợp lệ.');
+  let category;
+  await mongoose.connection.transaction(async session => {
+    category = await Category.findById(id).session(session); if (!category) fail(404, 'Không tìm thấy danh mục.');
+    if (req.body.active === false && await Product.exists({ category: category.name, active: true }).session(session)) fail(409, 'Chuyển/ngừng bán các sản phẩm trong danh mục trước.');
+    if (name !== undefined && name !== category.name) {
+      const products = await Product.find({ category: category.name }).session(session);
+      for (const product of products) {
+        product.category = name;
+        product.searchText = normalize([product.name, product.brand, name, product.shortDescription].join(' '));
+        await product.save({ session });
+      }
+      // Historical order lines retain their original category snapshot.
+      category.name = name;
+    }
+    if (req.body.active !== undefined) category.active = req.body.active;
+    await category.save({ session });
+  });
+  syncSearch().catch(() => {}); res.json(category);
 });
