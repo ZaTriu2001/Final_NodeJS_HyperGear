@@ -69,7 +69,7 @@ try {
   run('services/api-gateway/src/index.js', { PORT: '3080' });
   if (messaging) run('services/notification-service/src/index.js', { RABBITMQ_URL: 'amqp://guest:guest@127.0.0.1:5672', SMTP_HOST: '127.0.0.1', SMTP_PORT: '1025', SMTP_USER: '', SMTP_PASSWORD: '' });
   if (production) {
-    const build = run('node_modules/vite/bin/vite.js', {}, ['build', '--config', 'apps/web/vite.config.js'], false);
+    const build = run('node_modules/vite/bin/vite.js', { NODE_ENV: 'production' }, ['build', '--config', 'apps/web/vite.config.js'], false);
     const [buildCode] = await once(build, 'exit'); if (buildCode !== 0) throw new Error('Web build failed');
   }
   run('node_modules/vite/bin/vite.js', { HYPERGEAR_LOCAL: '1' }, [...(production ? ['preview', '--port', '8080'] : []), '--config', 'apps/web/vite.config.js']);
